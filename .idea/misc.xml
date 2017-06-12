@@ -6,14 +6,6 @@
         <option value="$PROJECT_DIR$/pom.xml" />
       </list>
     </option>
-    <option name="ignoredFiles">
-      <set>
-        <option value="$PROJECT_DIR$/spark/pom.xml" />
-        <option value="$PROJECT_DIR$/spider/pom.xml" />
-        <option value="$PROJECT_DIR$/suport/pom.xml" />
-        <option value="$PROJECT_DIR$/util/pom.xml" />
-      </set>
-    </option>
   </component>
   <component name="ProjectRootManager" version="2" languageLevel="JDK_1_7" project-jdk-name="1.7" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/out" />
