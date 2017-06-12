@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/spider/spider.iml" filepath="$PROJECT_DIR$/spider/spider.iml" />
       <module fileurl="file://$PROJECT_DIR$/suport/suport.iml" filepath="$PROJECT_DIR$/suport/suport.iml" />
       <module fileurl="file://$PROJECT_DIR$/util/util.iml" filepath="$PROJECT_DIR$/util/util.iml" />
       <module fileurl="file://$PROJECT_DIR$/xdtr_g01.iml" filepath="$PROJECT_DIR$/xdtr_g01.iml" />

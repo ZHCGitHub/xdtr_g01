@@ -11,6 +11,7 @@
     <modules>
         <module>util</module>
         <module>suport</module>
+        <module>spider</module>
     </modules>
 
 
