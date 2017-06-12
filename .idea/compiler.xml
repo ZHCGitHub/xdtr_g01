@@ -6,7 +6,7 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="xdtr_g01" />
+        <module name="util" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
@@ -14,7 +14,7 @@
       <module name="spider" target="1.5" />
       <module name="suport" target="1.5" />
       <module name="util" target="1.5" />
-      <module name="xdtr_g01" target="1.7" />
+      <module name="xdtr_g01" target="1.5" />
     </bytecodeTargetLevel>
   </component>
 </project>
