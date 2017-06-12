@@ -92,7 +92,7 @@ public class MysqlConnectUtil {
      * @param sql
      * @return int i（数据更新条数）
      */
-    private static int update(Connection conn, String sql) {
+    static int update(Connection conn, String sql) {
         PreparedStatement pstmt;
         int i = 0;
 
@@ -109,12 +109,8 @@ public class MysqlConnectUtil {
 
     /**
      * 根据传入的conn、sql删除数据库的数据
-     *
-     * @param conn
-     * @param sql
-     * @return
      */
-    private static int delete(Connection conn, String sql) {
+    static int delete(Connection conn, String sql) {
         PreparedStatement pstmt;
         int i = 0;
 
