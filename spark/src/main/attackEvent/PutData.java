@@ -46,10 +46,10 @@ public class PutData {
 //        String sql = "SELECT * FROM tbc_attack_log_history AS a " +
 //                "JOIN (SELECT ROUND(RAND() * (SELECT MAX(attack_id) FROM tbc_attack_log_history)) AS id)AS b " +
 //                "WHERE a.attack_id >= b.id ORDER BY a.attack_id ASC LIMIT 10000000";
-        String sql = "SELECT * FROM tbc_attack_log_history limit 10000";
+        String sql = "SELECT * FROM tbc_attack_log_history limit 1";
         SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");//设置日期格式
         try {
-            for (int i = 0; i < 10000; i++) {
+            for (int i = 0; i < 10000000; i++) {
                 ResultSet rs = MysqlConnectUtil.select(conn, sql);
                 while (rs.next()) {
                     //                Integer attack_id = rs.getInt(1);
