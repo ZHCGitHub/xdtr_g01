@@ -2,6 +2,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import scala.collection.mutable.Map
+
 /**
   * ━━━━━━神兽出没━━━━━━
   * 　　　┏┓　　　┏┓
@@ -34,14 +35,18 @@ object test {
     val now = new Date()
     val a = now.getTime
 
-    val dateFormat = new SimpleDateFormat("yyyyMMddHHmm")
+    val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm")
     val b = dateFormat.parse(dateFormat.format(a))
-//      .getTime
+    //      .getTime
 
     val c = now.getTime
+    val d = System.currentTimeMillis()
+    println(dateFormat.format(a))
 
-    val d = System.currentTimeMillis().toString
-    println()
+    var attackArray = new Array[Int](10)
+    println(attackArray(0))
+
+
   }
 
 }

@@ -34,7 +34,7 @@ public class Time_Util {
         String aaa = beforeTime("2017-06-09 16:20", 30);
     }
 
-    private static String beforeTime(String time, int minute) {
+     static String beforeTime(String time, int minute) {
         String befor = null;
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
         if (time.length() != 16) {

@@ -75,8 +75,7 @@ object AttackEvent {
     var thresholdMap: mutable.Map[String, Int] = mutable.Map()
     //定义一个存放时间id与网站url对应关系的Map
     var eventMap: mutable.Map[String, Long] = mutable.Map()
-    //定义一个标示网站是否有攻击数据的Map
-    var logMap: mutable.Map[String, Int] = mutable.Map()
+
 
     //获取当前时间前十分钟的数据
     //根据(",")分割从kafka获取到的按行数据，得到一个一个的list(每一行是一个list)
@@ -93,129 +92,123 @@ object AttackEvent {
     //上一步数据类型(url$time1,100),(url$time2,200)
 
     //获取每个网站前十分钟的汇总数据
-    //预期数据类型(url,time1$100|url,time2$200|)
+    //预期数据类型(url,time1$100|time2$200|)
     val attackCount_Rdds = attackCounts_Rdds
-      .map(x => (x._1.split('$')(0), x._1.split('$')(1) + "$" + x._2 + "|"))
+      .map(x => (x._1.split('$')(0), x._1.split('$')(1) + "$" + x._2 + "##"))
       .reduceByKey(_ + _)
 
     //    attackCount_Rdds.print()
 
     attackCount_Rdds.foreachRDD(
       rdd => {
-        val count = rdd.collect()
+//        val count = rdd.collect()
 
-        count.foreach(
-          x => println(x)
+        /**
+          * 获取网站阈值表中的信息
+          */
+        val sql1 = "SELECT * FROM tbc_dic_attack_event_threshold"
+        //运行mysql获取表tbc_dic_attack_event_threshold中的网站阈值
+        val rs = MysqlConnectUtil.select(conn, sql1)
+
+        var url = ""
+        var threshold = 0
+        //先清空thresholdMap，再遍历查询结果，将查询结果写入thresholdMap
+        thresholdMap.clear()
+        while (rs.next) {
+          url = rs.getString(1)
+          threshold = rs.getInt(2)
+          thresholdMap += (url -> threshold)
+        }
+        //          conn.close()
+        //          for (k <- map.keySet) println( k + "================>" + map(k))
+
+        /**
+          * 遍历rdd，得到每一条数据(每一条数据相当于存储每个网站的所有数据)
+          */
+        rdd.collect().foreach(
+//        count.foreach(
+
+          urlCount => {
+            val url = urlCount._1
+            val list = urlCount._2.split("##")
+
+            if (thresholdMap.contains(url)) {
+
+              //定义一个Map存储该网站最近十分钟，攻击时间与攻击次数的数据
+              var timeCount: mutable.Map[String, Int] = mutable.Map()
+
+              for (i <- 0 until list.length) {
+                timeCount += (list(i).split('$')(0) -> list(i).split('$')(1).toInt)
+              }
+
+              //              for (k <- timeCount.keySet) println(k + "================>" + timeCount(k))
+
+              //获取系统当前时间
+              val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm")
+              val currentTime = dateFormat.format(new Date().getTime)
+
+
+              //定义一个Array，按照网站攻击=时间来存储网站前十分钟的攻击数据
+              val attackArray = new Array[Int](10)
+              var i = 10
+              while (i > 0) {
+                val beforeTime = Time_Util.beforeTime(currentTime, i)
+                if (timeCount.contains(beforeTime)) {
+                  attackArray(i - 1) = timeCount(beforeTime)
+                } else {
+                  attackArray(i - 1) = 0
+                }
+                i -= 1
+              }
+
+              //判断上一分钟的攻击数量是否超过网站阈值
+              val attack_Time = Time_Util.beforeTime(currentTime, 1)
+              if (attackArray(0) > thresholdMap(url) * 10) {
+
+                //判断攻击事件Map(eventMap)没有该url。如果没有，则说明该事件正在开始，
+                //生成事件id，并向事件Map(eventMap)中添加该事件；如果有，跳过
+                if (!eventMap.contains(url)) {
+                  val eventId = System.currentTimeMillis()
+                  eventMap += (url -> eventId)
+
+                  //向攻击事件表中添加新的攻击事件
+                  val sql2 = "INSERT INTO tbc_rp_attack_event (attack_event_id,url,start_time,start_count,stop_time,stop_count,attack_status)" +
+                    "VALUES(\"" + eventId + "\",\"" + url + "\",\"" + attack_Time + "\"," + attackArray(0) + ",\"待定\",0," + 0 + ")"
+                  //                  println(sql2)
+                  MysqlConnectUtil.insert(conn, sql2)
+                }
+                //遍历attackArray的数据，将数据插入攻击数量清单表
+                println(">================================开始处理网站"+url+"的攻击数据================================<" )
+                var j = 10
+                while (j > 0) {
+                  val beforeTime = Time_Util.beforeTime(currentTime, j)
+                  val attackCount = attackArray(j-1)
+                  val sql2 = "REPLACE INTO tbc_md_attack_count VALUES(\""+eventMap(url)+"\",\""+url+"\",\""+beforeTime+"\","+attackCount+")"
+                  MysqlConnectUtil.insert(conn, sql2)
+                  println(beforeTime + "================>" + attackArray(j - 1))
+                  j-=1
+                }
+                println("currentTime================================" + currentTime)
+                println(">================================处理网站"+url+"的攻击数据结束================================<" )
+              } else {
+                //判断攻击事件Map(eventMap)没有该url。
+                //如果有，说明攻击结束，从事件Map(eventMap)中移除该事件；如果没有，跳过
+                if (eventMap.contains(url)) {
+                  val sql2 = "UPDATE tbc_rp_attack_event SET stop_time = \"" + attack_Time + "\",stop_count = " + attackArray(0) + ",attack_status = 1 WHERE attack_event_id = \"" + eventMap(url) + "\""
+                  //                  println(sql2)
+                  MysqlConnectUtil.update(conn, sql2)
+                  eventMap -= url
+                }
+              }
+            } else {
+              println("网站阈值表中没有该url：" + url + "的阈值信息！")
+            }
+
+
+          }
         )
-
       }
     )
-
-
-    //    attackCounts.foreachRDD(rdd => {
-    //      val count = rdd.count()
-    //      if (count == 0) {
-    //        println("===============================没有任何数据==============================")
-    //        //遍历eventMap(事件Map)，更新事件的结束时间以及运行状态
-    //        for (k <- eventMap.keySet) {
-    ////          println(k + "================>" + eventMap(k))
-    ////          println("更新事件表中相应事件的结束时间与结束状态")
-    //          //以当前分钟作为结束时间(待定*************************************************************)
-    //          val stopTime = new SimpleDateFormat("yyyyMMddHHmm") format (new Date().getTime)
-    //          val eventId = eventMap(k).toString
-    //          val sql2 = "UPDATE tbc_rp_attack_event SET stop_time = \"" + stopTime + "\",stop_count = 0,Attack_Status = 1 WHERE Attack_Event_Id = \"" + eventId + "\""
-    ////          println(sql2)
-    //          MysqlConnectUtil.update(conn, sql2)
-    //        }
-    //      } else {
-    //        //让记录按照攻击次数排序，collect全部数据
-    //        val attackCount = rdd.sortBy(_._1,ascending = true)
-    //          //          .sortBy(_._2, ascending = false)
-    //          .collect()
-    //
-    //        /**
-    //          * 获取网站阈值表中的信息
-    //          */
-    //        val sql1 = "SELECT * FROM tbc_dic_attack_event_threshold"
-    //        //运行mysql获取表tbc_dic_attack_event_threshold中的网站阈值
-    //        val rs = MysqlConnectUtil.select(conn, sql1)
-    //        //      System.out.println("sql====================" + sql)
-    //        var url = ""
-    //        var threshold = 0
-    //        //先清空thresholdMap，再遍历查询结果，将查询结果写入thresholdMap
-    //        thresholdMap.clear()
-    //        while (rs.next) {
-    //          url = rs.getString(1)
-    //          threshold = rs.getInt(2)
-    //          thresholdMap += (url -> threshold)
-    //        }
-    //        //          conn.close()
-    //        //          for (k <- map.keySet) println( k + "================>" + map(k))
-    //
-    //        /**
-    //          * 遍历rdd，得到每一条数据
-    //          */
-    //        attackCount.foreach(
-    //          //每一条攻击记录的格式为：(url$攻击时间,攻击次数)
-    //          word => {
-    //            url = word._1.split('$')(0)
-    //            val attack_time = word._1.split('$')(1)
-    //            //判断网站阈值Map中是否含有该url
-    //            if (thresholdMap.contains(url)) {
-    //              //判断网站攻击次数是否大于该网站阈值的指定倍数
-    //              logMap += (url -> 0)
-    //              if (word._2 > thresholdMap(url) * 100) {
-    //                //判断eventMap中是否有当前的url，如果没有则添加当前url与时间id的对应关系
-    //                if (eventMap.contains(url)) {
-    //                  println(url+"================================>"+attack_time)
-    //                  //                  println("更新事件表中相应事件的结束时间")
-    //                  //                  val eventId = eventMap(url).toString
-    //                  //                  val sql2 = "UPDATE tbc_rp_attack_event SET stop_time = \""+time+"\",stop_count = "+word._2+" WHERE Attack_Event_Id = \""+eventId+"\""
-    //                  ////                  println(sql2)
-    //                  //                  MysqlConnectUtil.update(conn,sql2)
-    //                } else {
-    //                  val eventId = System.currentTimeMillis()
-    //                  eventMap += (url -> eventId)
-    ////                  println("网站被攻击次数大于100========>" + word)
-    //                  val sql2 = "INSERT INTO tbc_rp_attack_event (Attack_Event_Id,url,start_time,start_count,stop_time,stop_count,Attack_Status)" +
-    //                    "VALUES(\"" + eventId + "\",\"" + url + "\",\"" + attack_time + "\"," + word._2 + ",\"" + attack_time + "\"," + word._2 + "," + 0 + ")"
-    //                  //                  println(sql2)
-    //                  MysqlConnectUtil.insert(conn, sql2)
-    //                }
-    //              } else {
-    //                if (eventMap.contains(url)) {
-    //                  println("更新事件表中相应事件的结束时间与结束状态")
-    //                  val eventId = eventMap(url).toString
-    //                  val sql2 = "UPDATE tbc_rp_attack_event SET stop_time = \"" + attack_time + "\",stop_count = " + word._2 + ",Attack_Status = 1 WHERE Attack_Event_Id = \"" + eventId + "\""
-    //                  println(sql2)
-    //                  MysqlConnectUtil.update(conn, sql2)
-    //                  eventMap -= url
-    //                }
-    //              }
-    //              //遍历事件Map，如果有网站没来攻击数据，则更新事件的结束时间以及运行状态
-    //
-    //              //以当前分钟作为结束时间(待定*************************************************************)
-    //              for (k <- eventMap.keySet) {
-    ////                println(k + "================>" + eventMap(k))
-    //                if(!logMap.contains(k)){
-    //                  //以当前分钟作为结束时间(待定*************************************************************)
-    //                  val stopTime = new SimpleDateFormat("yyyyMMddHHmm") format (new Date().getTime)
-    //                  val eventId = eventMap(k).toString
-    //                  val sql3 = "UPDATE tbc_rp_attack_event SET stop_time = \"" + stopTime + "\",stop_count = 0,Attack_Status = 1 WHERE Attack_Event_Id = \"" + eventId + "\""
-    //                  //          println(sql3)
-    //                  MysqlConnectUtil.update(conn, sql3)
-    //                }
-    //              }
-    //              logMap.clear()
-    //
-    //            } else {
-    //              println("表tbc_dic_attack_event_threshold中没有对应的url" + word._1.split('$')(0))
-    //            }
-    //          }
-    //        )
-    //
-    //      }
-    //    })
 
 
     ssc.start()
