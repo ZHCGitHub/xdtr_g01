@@ -1,6 +1,9 @@
 import java.text.SimpleDateFormat
 import java.util.Date
 
+import org.apache.hadoop.hbase.{HBaseConfiguration, TableName}
+import org.apache.hadoop.hbase.client.{HTable, Put}
+import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.kafka.KafkaUtils
 import org.apache.spark.streaming.{Seconds, StreamingContext}
@@ -68,6 +71,18 @@ object AttackEvent {
     val password = "123456"
     //获取mysql连接
     val conn = MysqlConnectUtil.getConn(driver, jdbc, username, password)
+    //获取HBase连接
+    val hbaseConf = HBaseConfiguration.create()
+    hbaseConf.set("hbase.zookeeper.quorum", "slave1.xdbd,slave2.xdbd,slave3.xdbd")
+    hbaseConf.set("hbase.zookeeper.property.clientPort", "2181")
+    hbaseConf.set("hbase.defaults.for.version.skip", "true")
+    val hbaseConn = new HTable(hbaseConf, TableName.valueOf("tbc_rp_attack_event"))
+
+    hbaseConn.setAutoFlush(false) //关键点1
+    hbaseConn.setWriteBufferSize(1 * 1024 * 1024)
+    //HBase Client会在数据累积到设置的阈值后才提交Region Server。
+    // 这样做的好处在于可以减少RPC连接次数，达到批次效果。
+    // 设置buffer的容量，例子中设置了1MB的buffer容量。
 
 
     //定义一个存放网站和阈值对应关系的Map
@@ -80,9 +95,18 @@ object AttackEvent {
     //获取当前时间前十分钟的数据
     //根据(",")分割从kafka获取到的按行数据，得到一个一个的list(每一行是一个list)
     val list_Rdds = logs.map(log => log.split("\",\""))
-      .window(Seconds(600), Seconds(60))
+    //      .window(Seconds(600), Seconds(60))
+
+    //将攻击日志存入hdfs
+    val line_Rdds = list_Rdds.map(list=>list(0).replaceAll("\"","")+"#|#"+list(1)
+      +"#|#"+list(2)+"#|#"+list(3)+"#|#"+list(4)+"#|#"+list(5)+"#|#"+list(6)+"#|#"+list(7)
+      +"#|#"+list(8)+"#|#"+list(9)+"#|#"+list(10)+"#|#"+list(11)+"#|#"+list(12)+"#|#"+list(13)
+      +"#|#"+list(14)+"#|#"+list(15)+"#|#"+list(16).replaceAll("\"","")
+    ).saveAsTextFiles("/xdtrdata/G01/data/attackLog")
+
     //从list中获取网站url与攻击时间，拼接成字符串(攻击时间截取到分钟)
     val url_Rdds = list_Rdds.map(list => list(3) + "$" + list(12).substring(0, 16))
+      .window(Seconds(600), Seconds(60))
 
     //对每个批次的数据进行合并，汇总(得到每个批次的wordcount)
     val attackCounts_Rdds = url_Rdds.map(word => (word, 1))
@@ -101,7 +125,7 @@ object AttackEvent {
 
     attackCount_Rdds.foreachRDD(
       rdd => {
-//        val count = rdd.collect()
+        //        val count = rdd.collect()
 
         /**
           * 获取网站阈值表中的信息
@@ -126,7 +150,7 @@ object AttackEvent {
           * 遍历rdd，得到每一条数据(每一条数据相当于存储每个网站的所有数据)
           */
         rdd.collect().foreach(
-//        count.foreach(
+          //        count.foreach(
 
           urlCount => {
             val url = urlCount._1
@@ -171,32 +195,48 @@ object AttackEvent {
                   val eventId = System.currentTimeMillis()
                   eventMap += (url -> eventId)
 
-                  //向攻击事件表中添加新的攻击事件
-                  val sql2 = "INSERT INTO tbc_rp_attack_event (attack_event_id,url,start_time,start_count,stop_time,stop_count,attack_status)" +
-                    "VALUES(\"" + eventId + "\",\"" + url + "\",\"" + attack_Time + "\"," + attackArray(0) + ",\"待定\",0," + 0 + ")"
-                  //                  println(sql2)
-                  MysqlConnectUtil.insert(conn, sql2)
+                  //                  //向攻击事件表中添加新的攻击事件
+                  //                  val sql2 = "INSERT INTO tbc_rp_attack_event (attack_event_id,url,start_time,start_count,stop_time,stop_count,attack_status)" +
+                  //                    "VALUES(\"" + eventId + "\",\"" + url + "\",\"" + attack_Time + "\"," + attackArray(0) + ",\"待定\",0," + 0 + ")"
+                  //                  //                  println(sql2)
+                  //                  MysqlConnectUtil.insert(conn, sql2)
+                  val p = new Put(Bytes.toBytes(eventId.toString))
+
+                  p.add("attack_event".getBytes, "url".getBytes, Bytes.toBytes(url))
+                  p.add("attack_event".getBytes, "start_time".getBytes, Bytes.toBytes(attack_Time))
+                  p.add("attack_event".getBytes, "start_count".getBytes, Bytes.toBytes(attackArray(0).toString))
+                  p.add("attack_event".getBytes, "stop_time".getBytes, Bytes.toBytes("待定"))
+                  p.add("attack_event".getBytes, "stop_count".getBytes, Bytes.toBytes("0"))
+                  p.add("attack_event".getBytes, "attack_status".getBytes, Bytes.toBytes("0"))
+                  p.add("attack_event".getBytes, "flag".getBytes, Bytes.toBytes("0"))
+                  hbaseConn.put(p)
                 }
                 //遍历attackArray的数据，将数据插入攻击数量清单表
-                println(">================================开始处理网站"+url+"的攻击数据================================<" )
+                println(">================================开始处理网站" + url + "的攻击数据================================<")
                 var j = 10
                 while (j > 0) {
                   val beforeTime = Time_Util.beforeTime(currentTime, j)
-                  val attackCount = attackArray(j-1)
-                  val sql2 = "REPLACE INTO tbc_md_attack_count VALUES(\""+eventMap(url)+"\",\""+url+"\",\""+beforeTime+"\","+attackCount+")"
+                  val attackCount = attackArray(j - 1)
+                  val sql2 = "REPLACE INTO tbc_md_attack_count VALUES(\"" + eventMap(url) + "\",\"" + url + "\",\"" + beforeTime + "\"," + attackCount + ")"
                   MysqlConnectUtil.insert(conn, sql2)
                   println(beforeTime + "================>" + attackArray(j - 1))
-                  j-=1
+                  j -= 1
                 }
                 println("currentTime================================" + currentTime)
-                println(">================================处理网站"+url+"的攻击数据结束================================<" )
+                println(">================================处理网站" + url + "的攻击数据结束================================<")
               } else {
                 //判断攻击事件Map(eventMap)没有该url。
                 //如果有，说明攻击结束，从事件Map(eventMap)中移除该事件；如果没有，跳过
                 if (eventMap.contains(url)) {
-                  val sql2 = "UPDATE tbc_rp_attack_event SET stop_time = \"" + attack_Time + "\",stop_count = " + attackArray(0) + ",attack_status = 1 WHERE attack_event_id = \"" + eventMap(url) + "\""
-                  //                  println(sql2)
-                  MysqlConnectUtil.update(conn, sql2)
+                  //                  val sql2 = "UPDATE tbc_rp_attack_event SET stop_time = \"" + attack_Time + "\",stop_count = " + attackArray(0) + ",attack_status = 1 WHERE attack_event_id = \"" + eventMap(url) + "\""
+                  //                  //                  println(sql2)
+                  //                  MysqlConnectUtil.update(conn, sql2)
+                  val p = new Put(Bytes.toBytes(eventMap(url).toString))
+
+                  p.add("attack_event".getBytes, "stop_time".getBytes, Bytes.toBytes(attack_Time))
+                  p.add("attack_event".getBytes, "stop_count".getBytes, Bytes.toBytes(attackArray(0).toString))
+                  p.add("attack_event".getBytes, "attack_status".getBytes, Bytes.toBytes("1"))
+                  hbaseConn.put(p)
                   eventMap -= url
                 }
               }
