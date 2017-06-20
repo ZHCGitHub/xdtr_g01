@@ -25,6 +25,7 @@
         <module>suport</module>
         <module>spider</module>
         <module>spark</module>
+        <module>putData</module>
     </modules>
 
     <dependencies>

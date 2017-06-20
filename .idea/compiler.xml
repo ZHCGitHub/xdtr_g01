@@ -6,6 +6,7 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="putData" />
         <module name="spark" />
         <module name="spider" />
         <module name="suport" />
@@ -13,6 +14,7 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="putData" target="1.7" />
       <module name="spark" target="1.7" />
       <module name="spider" target="1.7" />
       <module name="suport" target="1.7" />
