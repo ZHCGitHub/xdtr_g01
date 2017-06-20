@@ -79,16 +79,17 @@ object AttackEvent {
     hbaseConf.set("hbase.defaults.for.version.skip", "true")
     val hbaseConn = new HTable(hbaseConf, TableName.valueOf("tbc_rp_attack_event"))
 
-    hbaseConn.setAutoFlush(false) //关键点1
-    hbaseConn.setWriteBufferSize(1 * 1024 * 1024)
+//    hbaseConn.setAutoFlush(false) //关键点1
+//    hbaseConn.setWriteBufferSize(1 * 1024 * 1024)
     //HBase Client会在数据累积到设置的阈值后才提交Region Server。
     // 这样做的好处在于可以减少RPC连接次数，达到批次效果。
     // 设置buffer的容量，例子中设置了1MB的buffer容量。
 
 
-    //定义一个存放网站和阈值对应关系的Map
+    //定义存放网站和开始阈值、结束阈值对应关系的Map
     //如果要使用可变集，必须明确地导入scala.collection.mutable.Map类
-    var thresholdMap: mutable.Map[String, Int] = mutable.Map()
+    var startThresholdMap: mutable.Map[String, Int] = mutable.Map()
+    var stopThresholdMap: mutable.Map[String, Int] = mutable.Map()
     //定义一个存放时间id与网站url对应关系的Map
     var eventMap: mutable.Map[String, Long] = mutable.Map()
 
@@ -99,11 +100,11 @@ object AttackEvent {
     //      .window(Seconds(600), Seconds(60))
 
     //将攻击日志存入hdfs
-    val line_Rdds = list_Rdds.map(list=>list(0).replaceAll("\"","")+"#|#"+list(1)
-      +"#|#"+list(2)+"#|#"+list(3)+"#|#"+list(4)+"#|#"+list(5)+"#|#"+list(6)+"#|#"+list(7)
-      +"#|#"+list(8)+"#|#"+list(9)+"#|#"+list(10)+"#|#"+list(11)+"#|#"+list(12)+"#|#"+list(13)
-      +"#|#"+list(14)+"#|#"+list(15)+"#|#"+list(16).replaceAll("\"","")
-    ).saveAsTextFiles("hdfs://192.168.12.9:8020/xdtrdata/G01/data/attackLog/")
+    //    val line_Rdds = list_Rdds.map(list=>list(0).replaceAll("\"","")+"#|#"+list(1)
+    //      +"#|#"+list(2)+"#|#"+list(3)+"#|#"+list(4)+"#|#"+list(5)+"#|#"+list(6)+"#|#"+list(7)
+    //      +"#|#"+list(8)+"#|#"+list(9)+"#|#"+list(10)+"#|#"+list(11)+"#|#"+list(12)+"#|#"+list(13)
+    //      +"#|#"+list(14)+"#|#"+list(15)+"#|#"+list(16).replaceAll("\"","")
+    //    ).saveAsTextFiles("hdfs://192.168.12.9:8020/xdtrdata/G01/data/attackLog/")
 
     //从list中获取网站url与攻击时间，拼接成字符串(攻击时间截取到分钟)
     val url_Rdds = list_Rdds.map(list => list(3) + "$" + list(12).substring(0, 16))
@@ -126,8 +127,6 @@ object AttackEvent {
 
     attackCount_Rdds.foreachRDD(
       rdd => {
-        //        val count = rdd.collect()
-
         /**
           * 获取网站阈值表中的信息
           */
@@ -136,63 +135,82 @@ object AttackEvent {
         val rs = MysqlConnectUtil.select(conn, sql1)
 
         var url = ""
-        var threshold = 0
-        //先清空thresholdMap，再遍历查询结果，将查询结果写入thresholdMap
-        thresholdMap.clear()
+        var startThreshold = 0
+        var stopThreshold = 0
+        //先清空startThresholdMap与stopThresholdMap，
+        // 再遍历查询结果，将查询结果写入startThresholdMap与stopThresholdMap
+        startThresholdMap.clear()
+        stopThresholdMap.clear()
         while (rs.next) {
           url = rs.getString(1)
-          threshold = rs.getInt(2)
-          thresholdMap += (url -> threshold)
+          startThreshold = rs.getInt(2)
+          stopThreshold = rs.getInt(3)
+          startThresholdMap += (url -> startThreshold)
+          stopThresholdMap += (url -> stopThreshold)
         }
+
         //          conn.close()
         //          for (k <- map.keySet) println( k + "================>" + map(k))
 
         /**
           * 遍历rdd，得到每一条数据(每一条数据相当于存储每个网站的所有数据)
           */
-        rdd.collect().foreach(
-          //        count.foreach(
 
+        rdd.collect().foreach(
           urlCount => {
             val url = urlCount._1
             val list = urlCount._2.split("##")
 
-            if (thresholdMap.contains(url)) {
+            //定义一个Map存储该网站最近十分钟，攻击时间与攻击次数的数据
+            var timeCount: mutable.Map[String, Int] = mutable.Map()
 
-              //定义一个Map存储该网站最近十分钟，攻击时间与攻击次数的数据
-              var timeCount: mutable.Map[String, Int] = mutable.Map()
+            for (i <- 0 until list.length) {
+              timeCount += (list(i).split('$')(0) -> list(i).split('$')(1).toInt)
+            }
 
-              for (i <- 0 until list.length) {
-                timeCount += (list(i).split('$')(0) -> list(i).split('$')(1).toInt)
+            //获取系统当前时间
+            val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm")
+            val currentTime = dateFormat.format(new Date().getTime)
+            val attack_Time = Time_Util.beforeTime(currentTime, 1)
+
+            //定义一个Array，按照网站攻击=时间来存储网站前十分钟的攻击数据
+            val attackArray = new Array[Int](10)
+            var i = 10
+            while (i > 0) {
+              val beforeTime = Time_Util.beforeTime(currentTime, i)
+              if (timeCount.contains(beforeTime)) {
+                attackArray(i - 1) = timeCount(beforeTime)
+              } else {
+                attackArray(i - 1) = 0
               }
+              i -= 1
+            }
 
-              //              for (k <- timeCount.keySet) println(k + "================>" + timeCount(k))
+            //判断事件开始阀值与事件结束阀值Map中是否含有此url
+            if (startThresholdMap.contains(url) && stopThresholdMap.contains(url)) {
+              //判断攻击事件Map中是否存在此url
+              if (eventMap.contains(url)) {
+                //攻击事件Map中存在此url，判断网站上一分钟攻击数量是否触发事件结束阈值
+                //如果触发，更新事件表中的事件结束信息
+                if (attackArray(0) < stopThresholdMap(url) * 10) {
+                  //                  val sql2 = "UPDATE tbc_rp_attack_event SET stop_time = \"" + attack_Time + "\",stop_count = " + attackArray(0) + ",attack_status = 1 WHERE attack_event_id = \"" + eventMap(url) + "\""
+                  //                  //                  println(sql2)
+                  //                  MysqlConnectUtil.update(conn, sql2)
+                  val p = new Put(Bytes.toBytes(eventMap(url).toString))
 
-              //获取系统当前时间
-              val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm")
-              val currentTime = dateFormat.format(new Date().getTime)
-
-
-              //定义一个Array，按照网站攻击=时间来存储网站前十分钟的攻击数据
-              val attackArray = new Array[Int](10)
-              var i = 10
-              while (i > 0) {
-                val beforeTime = Time_Util.beforeTime(currentTime, i)
-                if (timeCount.contains(beforeTime)) {
-                  attackArray(i - 1) = timeCount(beforeTime)
+                  p.add("attack_event".getBytes, "stop_time".getBytes, Bytes.toBytes(attack_Time))
+                  p.add("attack_event".getBytes, "stop_count".getBytes, Bytes.toBytes(attackArray(0).toString))
+                  p.add("attack_event".getBytes, "attack_status".getBytes, Bytes.toBytes("1"))
+                  hbaseConn.put(p)
+                  eventMap -= url
                 } else {
-                  attackArray(i - 1) = 0
+                  //                println("pass")
                 }
-                i -= 1
-              }
+              } else {
 
-              //判断上一分钟的攻击数量是否超过网站阈值
-              val attack_Time = Time_Util.beforeTime(currentTime, 1)
-              if (attackArray(0) > thresholdMap(url) * 10) {
-
-                //判断攻击事件Map(eventMap)没有该url。如果没有，则说明该事件正在开始，
-                //生成事件id，并向事件Map(eventMap)中添加该事件；如果有，跳过
-                if (!eventMap.contains(url)) {
+                //攻击事件Map中不存在此url，判断网站上一分钟攻击数量是否触发事件开始阈值
+                if (attackArray(0) > startThresholdMap(url) * 10) {
+                  //生成事件id，并向事件Map(eventMap)中添加该事件
                   val eventId = System.currentTimeMillis()
                   eventMap += (url -> eventId)
 
@@ -211,43 +229,29 @@ object AttackEvent {
                   p.add("attack_event".getBytes, "attack_status".getBytes, Bytes.toBytes("0"))
                   p.add("attack_event".getBytes, "flag".getBytes, Bytes.toBytes("0"))
                   hbaseConn.put(p)
-                }
-                //遍历attackArray的数据，将数据插入攻击数量清单表
-                println(">================================开始处理网站" + url + "的攻击数据================================<")
-                var j = 10
-                while (j > 0) {
-                  val beforeTime = Time_Util.beforeTime(currentTime, j)
-                  val attackCount = attackArray(j - 1)
-                  val sql2 = "REPLACE INTO tbc_md_attack_count VALUES(\"" + eventMap(url) + "\",\"" + url + "\",\"" + beforeTime + "\"," + attackCount + ")"
-                  MysqlConnectUtil.insert(conn, sql2)
-                  println(beforeTime + "================>" + attackArray(j - 1))
-                  j -= 1
-                }
-                println("currentTime================================" + currentTime)
-                println(">================================处理网站" + url + "的攻击数据结束================================<")
-              } else {
-                //判断攻击事件Map(eventMap)没有该url。
-                //如果有，说明攻击结束，从事件Map(eventMap)中移除该事件；如果没有，跳过
-                if (eventMap.contains(url)) {
-                  //                  val sql2 = "UPDATE tbc_rp_attack_event SET stop_time = \"" + attack_Time + "\",stop_count = " + attackArray(0) + ",attack_status = 1 WHERE attack_event_id = \"" + eventMap(url) + "\""
-                  //                  //                  println(sql2)
-                  //                  MysqlConnectUtil.update(conn, sql2)
-                  val p = new Put(Bytes.toBytes(eventMap(url).toString))
 
-                  p.add("attack_event".getBytes, "stop_time".getBytes, Bytes.toBytes(attack_Time))
-                  p.add("attack_event".getBytes, "stop_count".getBytes, Bytes.toBytes(attackArray(0).toString))
-                  p.add("attack_event".getBytes, "attack_status".getBytes, Bytes.toBytes("1"))
-                  hbaseConn.put(p)
-                  eventMap -= url
+                  //遍历attackArray的数据，将数据插入攻击数量清单表
+                  println(">================================开始处理网站" + url + "的攻击数据================================<")
+                  var j = 10
+                  while (j > 0) {
+                    val beforeTime = Time_Util.beforeTime(currentTime, j)
+                    val attackCount = attackArray(j - 1)
+                    val sql2 = "REPLACE INTO tbc_md_attack_count VALUES(\"" + eventMap(url) + "\",\"" + url + "\",\"" + beforeTime + "\"," + attackCount + ")"
+                    MysqlConnectUtil.insert(conn, sql2)
+                    println(beforeTime + "================>" + attackArray(j - 1))
+                    j -= 1
+                  }
+                  println("currentTime================================" + currentTime)
+                  println(">================================处理网站" + url + "的攻击数据结束================================<")
+                } else {
+                  //                println("pass")
                 }
               }
             } else {
-              println("网站阈值表中没有该url：" + url + "的阈值信息！")
+              //              println("pass")
             }
 
-
-          }
-        )
+          })
       }
     )
 
@@ -255,6 +259,5 @@ object AttackEvent {
     ssc.start()
     ssc.awaitTermination()
     //如果要统计一天的,或者10小时的,我们要设置检查点,看历史情况
-
   }
 }
