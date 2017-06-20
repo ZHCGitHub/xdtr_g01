@@ -62,6 +62,7 @@ object AttackEvent {
     val topicMap = topics.split(",").map((_, numThreads.toInt)).toMap
     //得出写到kafka里面每一行每一行的数据
     //每个时间段批次
+
     val logs = KafkaUtils.createStream(ssc, zkQuorum, group, topicMap).map(_._2)
 
     //从mysql上获取网站阈值数据
@@ -102,7 +103,7 @@ object AttackEvent {
       +"#|#"+list(2)+"#|#"+list(3)+"#|#"+list(4)+"#|#"+list(5)+"#|#"+list(6)+"#|#"+list(7)
       +"#|#"+list(8)+"#|#"+list(9)+"#|#"+list(10)+"#|#"+list(11)+"#|#"+list(12)+"#|#"+list(13)
       +"#|#"+list(14)+"#|#"+list(15)+"#|#"+list(16).replaceAll("\"","")
-    ).saveAsTextFiles("hdfs://192.168.12.9:8020/xdtrdata/G01/data/attackLog")
+    ).saveAsTextFiles("hdfs://192.168.12.9:8020/xdtrdata/G01/data/attackLog/")
 
     //从list中获取网站url与攻击时间，拼接成字符串(攻击时间截取到分钟)
     val url_Rdds = list_Rdds.map(list => list(3) + "$" + list(12).substring(0, 16))
