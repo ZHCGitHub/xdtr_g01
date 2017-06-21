@@ -1,14 +1,18 @@
+
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import org.apache.hadoop.hbase.{HBaseConfiguration, TableName}
 import org.apache.hadoop.hbase.client.{HTable, Put}
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.SparkConf
+import org.apache.hadoop.hbase.{HBaseConfiguration, TableName}
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.streaming.kafka.KafkaUtils
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
 import scala.collection.mutable
+
 
 /**
   * ━━━━━━神兽出没━━━━━━
@@ -52,9 +56,18 @@ object AttackEvent {
     //    val time = args(1).toInt
 
     //spark程序的入口
-    val conf = new SparkConf().setAppName("WordCount").setMaster("yarn-client")
+    val conf = new SparkConf()
+      .setAppName("WordCount").setMaster("yarn-client")
+    val sc = new SparkContext(conf)
     //spark streaming程序的入口
-    val ssc = new StreamingContext(conf, Seconds(time)) //60秒一个批次
+    val ssc = new StreamingContext(sc, Seconds(time)) //60秒一个批次
+
+    val hiveContext = new HiveContext(sc)
+    import hiveContext.implicits._
+
+    hiveContext.setConf("hive.exec.dynamic.partition", "true")
+    hiveContext.setConf("hive.exec.dynamic.partition.mode", "nonstrict")
+
     val zkQuorum = "192.168.12.12:2181"
     val group = "g01"
     //setmaster的核数至少给2,如果给1,资源不够则无法计算,至少需要一个核进行维护,一个计算
@@ -79,8 +92,8 @@ object AttackEvent {
     hbaseConf.set("hbase.defaults.for.version.skip", "true")
     val hbaseConn = new HTable(hbaseConf, TableName.valueOf("tbc_rp_attack_event"))
 
-//    hbaseConn.setAutoFlush(false) //关键点1
-//    hbaseConn.setWriteBufferSize(1 * 1024 * 1024)
+    //    hbaseConn.setAutoFlush(false) //关键点1
+    //    hbaseConn.setWriteBufferSize(1 * 1024 * 1024)
     //HBase Client会在数据累积到设置的阈值后才提交Region Server。
     // 这样做的好处在于可以减少RPC连接次数，达到批次效果。
     // 设置buffer的容量，例子中设置了1MB的buffer容量。
@@ -99,12 +112,6 @@ object AttackEvent {
     val list_Rdds = logs.map(log => log.split("\",\""))
     //      .window(Seconds(600), Seconds(60))
 
-    //将攻击日志存入hdfs
-    //    val line_Rdds = list_Rdds.map(list=>list(0).replaceAll("\"","")+"#|#"+list(1)
-    //      +"#|#"+list(2)+"#|#"+list(3)+"#|#"+list(4)+"#|#"+list(5)+"#|#"+list(6)+"#|#"+list(7)
-    //      +"#|#"+list(8)+"#|#"+list(9)+"#|#"+list(10)+"#|#"+list(11)+"#|#"+list(12)+"#|#"+list(13)
-    //      +"#|#"+list(14)+"#|#"+list(15)+"#|#"+list(16).replaceAll("\"","")
-    //    ).saveAsTextFiles("hdfs://192.168.12.9:8020/xdtrdata/G01/data/attackLog/")
 
     //从list中获取网站url与攻击时间，拼接成字符串(攻击时间截取到分钟)
     val url_Rdds = list_Rdds.map(list => list(3) + "$" + list(12).substring(0, 16))
@@ -255,9 +262,36 @@ object AttackEvent {
       }
     )
 
+    //将攻击日志存入hdfs
+    val line_Rdds = list_Rdds
+      .map(list => {
+        if (eventMap.contains(list(3))) {
+          eventMap(list(3)) + "#|#" + list(0).replaceAll("\"", "") + "#|#" + list(1) + "#|#" + list(2) + "#|#" + list(3) + "#|#" + list(4) + "#|#" + list(5) + "#|#" + list(6) + "#|#" + list(7) + "#|#" + list(8) + "#|#" + list(9) + "#|#" + list(10) + "#|#" + list(11) + "#|#" + list(12) + "#|#" + list(13) + "#|#" + list(14) + "#|#" + list(15) + "#|#" + list(16).replaceAll("\"", "")
+        } else {
+          "0000000000000" + "#|#" + list(0).replaceAll("\"", "") + "#|#" + list(1) + "#|#" + list(2) + "#|#" + list(3) + "#|#" + list(4) + "#|#" + list(5) + "#|#" + list(6) + "#|#" + list(7) + "#|#" + list(8) + "#|#" + list(9) + "#|#" + list(10) + "#|#" + list(11) + "#|#" + list(12) + "#|#" + list(13) + "#|#" + list(14) + "#|#" + list(15) + "#|#" + list(16).replaceAll("\"", "")
+        }
+      }
+      ).map(x => x.split("#|#")).filter(_ (0) != "0000000000000")
+    //      .saveAsTextFiles("hdfs://192.168.12.9:8020/xdtrdata/G01/data/attackLog/")
+
+
+    line_Rdds.foreachRDD(
+      rdd => {
+        val time = new SimpleDateFormat("yyyy-MM-dd").format(new Date())
+        rdd.map(x => Appcrashdata(x(0), x(1), x(2), x(3), x(4), x(5),
+          x(6), x(7), x(8), x(9), x(10), x(11), x(12), x(13), x(14), x(15), x(16), x(17), time))
+          .toDF().write.partitionBy("attackdate").mode(SaveMode.Append).saveAsTable("tbc_ls_attack_log_history")
+      }
+    )
 
     ssc.start()
     ssc.awaitTermination()
     //如果要统计一天的,或者10小时的,我们要设置检查点,看历史情况
   }
 }
+
+
+
+
+
+
