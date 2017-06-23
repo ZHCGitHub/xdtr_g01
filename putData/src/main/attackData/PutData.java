@@ -44,7 +44,7 @@ public class PutData {
         Connection conn = MysqlConnectUtil.getConn(driver, jdbc, username, password);
 
         try {
-            for (int i = 0; i < 100; i++) {
+            for (int i = 0; i < 10000; i++) {
                 String sql = "SELECT * FROM tbc_attack_log_history AS a " +
                         "JOIN (SELECT ROUND(RAND() * (SELECT MAX(attack_id) FROM tbc_attack_log_history)) AS id)AS b " +
                         "WHERE a.attack_id >= b.id ORDER BY a.attack_id ASC LIMIT 100000";
@@ -61,8 +61,12 @@ public class PutData {
                     String source_ip = rs.getString(7);
                     String url = rs.getString(8);
 
-                    url = url.replaceAll("\"", "");
-                    url = url.replaceAll("\\\\", "");
+                    if (url.contains("\"")){
+                        url = url.replaceAll("\"", "");
+                    }
+                    if (url.contains("\\")){
+                        url = url.replaceAll("\\\\", "");
+                    }
 
                     String attack_type = rs.getString(9);
                     Integer attack_level = rs.getInt(10);

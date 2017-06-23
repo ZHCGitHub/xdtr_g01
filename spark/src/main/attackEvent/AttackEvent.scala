@@ -2,11 +2,6 @@
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import org.apache.hadoop.hbase.client.{HTable, Put}
-import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{HBaseConfiguration, TableName}
-import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.streaming.kafka.KafkaUtils
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
@@ -87,11 +82,11 @@ object AttackEvent {
     //获取mysql连接
     val conn = MysqlConnectUtil.getConn(driver, jdbc, username, password)
     //获取HBase连接
-    val hbaseConf = HBaseConfiguration.create()
-    hbaseConf.set("hbase.zookeeper.quorum", "slave1.xdbd,slave2.xdbd,slave3.xdbd")
-    hbaseConf.set("hbase.zookeeper.property.clientPort", "2181")
-    hbaseConf.set("hbase.defaults.for.version.skip", "true")
-    val hbaseConn = new HTable(hbaseConf, TableName.valueOf("tbc_rp_attack_event"))
+//    val hbaseConf = HBaseConfiguration.create()
+//    hbaseConf.set("hbase.zookeeper.quorum", "slave1.xdbd,slave2.xdbd,slave3.xdbd")
+//    hbaseConf.set("hbase.zookeeper.property.clientPort", "2181")
+//    hbaseConf.set("hbase.defaults.for.version.skip", "true")
+//    val hbaseConn = new HTable(hbaseConf, TableName.valueOf("tbc_rp_attack_event"))
 
     //    hbaseConn.setAutoFlush(false) //关键点1
     //    hbaseConn.setWriteBufferSize(1 * 1024 * 1024)

@@ -1,11 +1,6 @@
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import org.apache.spark.sql.hive.HiveContext
-import org.apache.spark.streaming.{Seconds, StreamingContext}
-import org.apache.spark.{SparkConf, SparkContext}
-
-import scala.collection.mutable.Map
 
 /**
   * ━━━━━━神兽出没━━━━━━
