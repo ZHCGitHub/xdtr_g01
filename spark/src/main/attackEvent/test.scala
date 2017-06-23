@@ -35,11 +35,22 @@ import scala.collection.mutable.Map
   */
 object test {
   def main(args: Array[String]): Unit = {
-    val sparkConf = new SparkConf()//.setAppName(file).setMaster("local[2]")
-    val sc = new SparkContext(sparkConf)
-//    val ssc = new StreamingContext(sc, Seconds(60))
-    val hiveContext = new HiveContext(sc)
-//    import hiveContext.implicits._
 
+    var now:Long = new Date().getTime
+
+    var  dateFormat = new SimpleDateFormat("yyyyMMdd")//yyyy-MM-dd HH:mm:ss
+    var hehe = dateFormat.format(now)
+
+    val date = dateFormat.parse(hehe).getTime
+    println("2017-06-09 16:20".substring(0,10))
+  }
+  def getTime():String={
+    var now:Long = new Date().getTime
+
+    var  dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm")//:ss
+    var hehe = dateFormat.format(now)
+
+    val date = dateFormat.parse(hehe).toString
+    date
   }
 }

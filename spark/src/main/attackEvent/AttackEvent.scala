@@ -38,7 +38,7 @@ import scala.collection.mutable
   * User: Created by 宋增旭
   * DateTime: 2017/6/6 14:39
   * 功能：
-  * 参考网站：
+  * 参考网站：http://blog.csdn.net/mlljava1111/article/details/52733293
   */
 object AttackEvent {
   def main(args: Array[String]): Unit = {
@@ -62,11 +62,12 @@ object AttackEvent {
     //spark streaming程序的入口
     val ssc = new StreamingContext(sc, Seconds(time)) //60秒一个批次
 
-    val hiveContext = new HiveContext(sc)
-    import hiveContext.implicits._
-
-    hiveContext.setConf("hive.exec.dynamic.partition", "true")
-    hiveContext.setConf("hive.exec.dynamic.partition.mode", "nonstrict")
+    //    val hiveContext = new HiveContext(sc)
+    //    import hiveContext.implicits._
+    //
+    //    hiveContext.setConf("spark.sql.shuffle.partitions", "1")
+    //    hiveContext.setConf("hive.exec.dynamic.partition", "true")
+    //    hiveContext.setConf("hive.exec.dynamic.partition.mode", "nonstrict")
 
     val zkQuorum = "192.168.12.12:2181"
     val group = "g01"
@@ -130,7 +131,6 @@ object AttackEvent {
       .map(x => (x._1.split('$')(0), x._1.split('$')(1) + "$" + x._2 + "##"))
       .reduceByKey(_ + _)
 
-    //    attackCount_Rdds.print()
 
     attackCount_Rdds.foreachRDD(
       rdd => {
@@ -200,15 +200,16 @@ object AttackEvent {
                 //攻击事件Map中存在此url，判断网站上一分钟攻击数量是否触发事件结束阈值
                 //如果触发，更新事件表中的事件结束信息
                 if (attackArray(0) < stopThresholdMap(url) * 10) {
-                  //                  val sql2 = "UPDATE tbc_rp_attack_event SET stop_time = \"" + attack_Time + "\",stop_count = " + attackArray(0) + ",attack_status = 1 WHERE attack_event_id = \"" + eventMap(url) + "\""
-                  //                  //                  println(sql2)
-                  //                  MysqlConnectUtil.update(conn, sql2)
-                  val p = new Put(Bytes.toBytes(eventMap(url).toString))
+                  val sql2 = "UPDATE tbc_rp_attack_event SET stop_time = \"" + attack_Time + "\",stop_count = " + attackArray(0) + ",attack_status = 1 WHERE attack_event_id = \"" + eventMap(url) + "\""
+                  //                  println(sql2)
+                  MysqlConnectUtil.update(conn, sql2)
 
-                  p.add("attack_event".getBytes, "stop_time".getBytes, Bytes.toBytes(attack_Time))
-                  p.add("attack_event".getBytes, "stop_count".getBytes, Bytes.toBytes(attackArray(0).toString))
-                  p.add("attack_event".getBytes, "attack_status".getBytes, Bytes.toBytes("1"))
-                  hbaseConn.put(p)
+                  //                  val p = new Put(Bytes.toBytes(eventMap(url).toString))
+                  //
+                  //                  p.add("attack_event".getBytes, "stop_time".getBytes, Bytes.toBytes(attack_Time))
+                  //                  p.add("attack_event".getBytes, "stop_count".getBytes, Bytes.toBytes(attackArray(0).toString))
+                  //                  p.add("attack_event".getBytes, "attack_status".getBytes, Bytes.toBytes("1"))
+                  //                  hbaseConn.put(p)
                   eventMap -= url
                 } else {
                   //                println("pass")
@@ -221,35 +222,36 @@ object AttackEvent {
                   val eventId = System.currentTimeMillis()
                   eventMap += (url -> eventId)
 
-                  //                  //向攻击事件表中添加新的攻击事件
-                  //                  val sql2 = "INSERT INTO tbc_rp_attack_event (attack_event_id,url,start_time,start_count,stop_time,stop_count,attack_status)" +
-                  //                    "VALUES(\"" + eventId + "\",\"" + url + "\",\"" + attack_Time + "\"," + attackArray(0) + ",\"待定\",0," + 0 + ")"
-                  //                  //                  println(sql2)
-                  //                  MysqlConnectUtil.insert(conn, sql2)
-                  val p = new Put(Bytes.toBytes(eventId.toString))
+                  //向攻击事件表中添加新的攻击事件
+                  val sql2 = "INSERT INTO tbc_rp_attack_event (attack_event_id,url,start_time,start_count,stop_time,stop_count,attack_status)" +
+                    "VALUES(\"" + eventId + "\",\"" + url + "\",\"" + attack_Time + "\"," + attackArray(0) + ",\"待定\",0," + 0 + ")"
+                  //                  println(sql2)
+                  MysqlConnectUtil.insert(conn, sql2)
 
-                  p.add("attack_event".getBytes, "url".getBytes, Bytes.toBytes(url))
-                  p.add("attack_event".getBytes, "start_time".getBytes, Bytes.toBytes(attack_Time))
-                  p.add("attack_event".getBytes, "start_count".getBytes, Bytes.toBytes(attackArray(0).toString))
-                  p.add("attack_event".getBytes, "stop_time".getBytes, Bytes.toBytes("待定"))
-                  p.add("attack_event".getBytes, "stop_count".getBytes, Bytes.toBytes("0"))
-                  p.add("attack_event".getBytes, "attack_status".getBytes, Bytes.toBytes("0"))
-                  p.add("attack_event".getBytes, "flag".getBytes, Bytes.toBytes("0"))
-                  hbaseConn.put(p)
+                  //                  val p = new Put(Bytes.toBytes(eventId.toString))
+                  //
+                  //                  p.add("attack_event".getBytes, "url".getBytes, Bytes.toBytes(url))
+                  //                  p.add("attack_event".getBytes, "start_time".getBytes, Bytes.toBytes(attack_Time))
+                  //                  p.add("attack_event".getBytes, "start_count".getBytes, Bytes.toBytes(attackArray(0).toString))
+                  //                  p.add("attack_event".getBytes, "stop_time".getBytes, Bytes.toBytes("待定"))
+                  //                  p.add("attack_event".getBytes, "stop_count".getBytes, Bytes.toBytes("0"))
+                  //                  p.add("attack_event".getBytes, "attack_status".getBytes, Bytes.toBytes("0"))
+                  //                  p.add("attack_event".getBytes, "flag".getBytes, Bytes.toBytes("0"))
+                  //                  hbaseConn.put(p)
 
                   //遍历attackArray的数据，将数据插入攻击数量清单表
-                  println(">================================开始处理网站" + url + "的攻击数据================================<")
+                  //                  println(">================================开始处理网站" + url + "的攻击数据================================<")
                   var j = 10
                   while (j > 0) {
                     val beforeTime = Time_Util.beforeTime(currentTime, j)
                     val attackCount = attackArray(j - 1)
                     val sql2 = "REPLACE INTO tbc_md_attack_count VALUES(\"" + eventMap(url) + "\",\"" + url + "\",\"" + beforeTime + "\"," + attackCount + ")"
                     MysqlConnectUtil.insert(conn, sql2)
-                    println(beforeTime + "================>" + attackArray(j - 1))
+                    //                    println(beforeTime + "================>" + attackArray(j - 1))
                     j -= 1
                   }
-                  println("currentTime================================" + currentTime)
-                  println(">================================处理网站" + url + "的攻击数据结束================================<")
+                  //                  println("currentTime================================" + currentTime)
+                  //                  println(">================================处理网站" + url + "的攻击数据结束================================<")
                 } else {
                   //                println("pass")
                 }
@@ -262,6 +264,7 @@ object AttackEvent {
       }
     )
 
+
     //将攻击日志存入hdfs
     val line_Rdds = list_Rdds
       .map(list => {
@@ -271,18 +274,35 @@ object AttackEvent {
           "0000000000000" + "#|#" + list(0).replaceAll("\"", "") + "#|#" + list(1) + "#|#" + list(2) + "#|#" + list(3) + "#|#" + list(4) + "#|#" + list(5) + "#|#" + list(6) + "#|#" + list(7) + "#|#" + list(8) + "#|#" + list(9) + "#|#" + list(10) + "#|#" + list(11) + "#|#" + list(12) + "#|#" + list(13) + "#|#" + list(14) + "#|#" + list(15) + "#|#" + list(16).replaceAll("\"", "")
         }
       }
-      ).map(x => x.split("#|#")).filter(_ (0) != "0000000000000")
-    //      .saveAsTextFiles("hdfs://192.168.12.9:8020/xdtrdata/G01/data/attackLog/")
-
-
-    line_Rdds.foreachRDD(
+      ).foreachRDD(
       rdd => {
-        val time = new SimpleDateFormat("yyyy-MM-dd").format(new Date())
-        rdd.map(x => Appcrashdata(x(0), x(1), x(2), x(3), x(4), x(5),
-          x(6), x(7), x(8), x(9), x(10), x(11), x(12), x(13), x(14), x(15), x(16), x(17), time))
-          .toDF().write.partitionBy("attackdate").mode(SaveMode.Append).saveAsTable("tbc_ls_attack_log_history")
+        //获取系统当前时间
+        val dateFormat1 = new SimpleDateFormat("yyyy-MM-dd HH:mm")
+        val dateFormat2 = new SimpleDateFormat("yyyyMMdd")
+        val currentTime = dateFormat1.format(new Date().getTime)
+        val attack_Time = Time_Util.beforeTime(currentTime, 1)
+
+
+        val time = dateFormat1.parse(attack_Time).getTime()
+        val date = dateFormat2.format(time)
+        rdd.saveAsTextFile("/xdtrdata/G01/data/event/" + date + "-" + time)
+        //        rdd.saveAsTextFile("/xdtrdata/G01/data/attackLog1/"+date+"-"+time)
       }
     )
+    //      .saveAsTextFiles("/xdtrdata/G01/data/attackLog1/"+test.getTime())
+    //      .print()
+    //      .map(x => x.split("\\#\\|\\#")).filter(_ (0) != "0000000000000")
+
+
+    //    line_Rdds.foreachRDD(
+    //          rdd => {
+    //            val date = new SimpleDateFormat("yyyy-MM-dd").format(new Date())
+    //            hiveContext.sql("use g01")
+    //            rdd.map(x => Appcrashdata(x(0), x(1), x(2), x(3), x(4), x(5),
+    //              x(6), x(7), x(8), x(9), x(10), x(11), x(12), x(13), x(14), x(15), x(16), x(17), date))
+    //              .toDF().write.partitionBy("attack_date").mode(SaveMode.Append).saveAsTable("tbc_ls_attack_log_history")
+    //          }
+    //        )
 
     ssc.start()
     ssc.awaitTermination()

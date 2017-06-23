@@ -25,5 +25,22 @@
   * 参考网站：
   */
 /** Case class for converting RDD to DataFrame */
-case class Appcrashdata(str: String, str1: String, str2: String, str3: String, str4: String, str5: String, str6: String, str7: String, str8: String, str9: String, str10: String, str11: String, str12: String, str13: String, str14: String, str15: String, str16: String, str17: String, time: String) {
-}
+case class Appcrashdata(event_id: String,
+                        attack_id: String,
+                        g01_id: String,
+                        server_name: String,
+                        site_domain: String,
+                        site_id: String,
+                        source_addr: String,
+                        source_ip: String,
+                        url: String,
+                        attack_type: String,
+                        attack_level: String,
+                        attack_violdate: String,
+                        handle_tyle: String,
+                        attack_time: String,
+                        attack_time_str: String,
+                        add_time: String,
+                        city_id: String,
+                        state: String,
+                        attack_date: String) {}
