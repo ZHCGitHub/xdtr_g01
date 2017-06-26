@@ -1,6 +1,8 @@
 import java.text.SimpleDateFormat
 import java.util.Date
 
+import scala.collection.mutable
+
 
 /**
   * ━━━━━━神兽出没━━━━━━
@@ -31,21 +33,32 @@ import java.util.Date
 object test {
   def main(args: Array[String]): Unit = {
 
-    var now:Long = new Date().getTime
+    var tmpMap: mutable.Map[String,(String,Int)] = mutable.Map()
 
-    var  dateFormat = new SimpleDateFormat("yyyyMMdd")//yyyy-MM-dd HH:mm:ss
-    var hehe = dateFormat.format(now)
+    tmpMap +=("aaa"->("aaa"->5))
 
-    val date = dateFormat.parse(hehe).getTime
-    println("2017-06-09 16:20".substring(0,10))
-  }
-  def getTime():String={
-    var now:Long = new Date().getTime
+    tmpMap +=("bbb"->("bbb"->5))
 
-    var  dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm")//:ss
-    var hehe = dateFormat.format(now)
+    tmpMap +=("ccc"->("ccc"->5))
 
-    val date = dateFormat.parse(hehe).toString
-    date
+    tmpMap +=("ddd"->("ddd"->5))
+
+    tmpMap +=("eee"->("eee"->5))
+
+    tmpMap +=("fff"->("fff"->5))
+
+//    tmpMap.keys.foreach{ i =>
+//      println("Key = " + i )
+//      println(" Value1 = " + tmpMap(i)._1 )
+//      println(" Value2 = " + tmpMap(i)._2 )
+//    }
+
+    val a=1000
+
+    if (a>100){
+      println("a>100!")
+    }else if (a>200){
+      println("a>200!")
+    }
   }
 }

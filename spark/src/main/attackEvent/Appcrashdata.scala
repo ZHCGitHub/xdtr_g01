@@ -21,10 +21,9 @@
   * Created by Intellij IDEA
   * User: Created by 宋增旭
   * DateTime: 2017/6/21 17:46
-  * 功能：
+  * 功能：Case class for converting RDD to DataFrame
   * 参考网站：
   */
-/** Case class for converting RDD to DataFrame */
 case class Appcrashdata(event_id: String,
                         attack_id: String,
                         g01_id: String,

@@ -25,7 +25,7 @@ import java.util.Date;
  * Created by Intellij IDEA
  * User: Created by 宋增旭
  * DateTime: 2017/6/8 11:09
- * 功能：
+ * 功能：根据传入的时间，获取前n分钟的时间
  * 参考网站：
  */
 public class Time_Util {
