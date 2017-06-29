@@ -33,10 +33,10 @@ import org.apache.hadoop.fs.Path;
  * 参考网站：
  */
 public class configure {
-    public static final String HTMLFILESPATH="hdfs://ubuntu:9000/Crawler/HtmlFiles/";
-    public static final String URLFILESPATH="hdfs://ubuntu:9000/Crawler/UrlFiles/";
-    public static final String TEMPPATH="hdfs://ubuntu:9000/Crawler/temp/";
-    public static final String HTMLFILESINFOPATH="hdfs://ubuntu:9000/Crawler/HtmlFileInfo/";
+    public static final String HTMLFILESPATH="hdfs://master.xdbd:8020/Crawler/HtmlFiles/";
+    public static final String URLFILESPATH="hdfs://master.xdbd:8020/Crawler/UrlFiles/";
+    public static final String TEMPPATH="hdfs://master.xdbd:8020/Crawler/temp/";
+    public static final String HTMLFILESINFOPATH="hdfs://master.xdbd:8020/Crawler/HtmlFileInfo/";
     public static final String URLNAME="/url.txt";
     public static final String HTMLINFONAME="/HtmlInfo.txt";
     public static final String getUrlPath(String level){
