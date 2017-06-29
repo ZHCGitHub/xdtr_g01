@@ -6,6 +6,7 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="hadoop-crawler" />
         <module name="putData" />
         <module name="spark" />
         <module name="spider" />
@@ -14,6 +15,7 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="hadoop-crawler" target="1.7" />
       <module name="putData" target="1.7" />
       <module name="spark" target="1.7" />
       <module name="spider" target="1.7" />

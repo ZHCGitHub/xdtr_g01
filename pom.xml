@@ -26,6 +26,9 @@
         <module>spider</module>
         <module>spark</module>
         <module>putData</module>
+        <module>hadoopcrawler</module>
+        <module>hadoop-crawler</module>
+        <module>hadoop-crawler</module>
     </modules>
 
     <dependencies>
