@@ -26,6 +26,20 @@
             <version>2.7.1</version>
         </dependency>
 
+        <!--&lt;!&ndash; https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-hdfs &ndash;&gt;-->
+        <!--<dependency>-->
+            <!--<groupId>org.apache.hadoop</groupId>-->
+            <!--<artifactId>hadoop-hdfs</artifactId>-->
+            <!--<version>2.7.1</version>-->
+        <!--</dependency>-->
+
+        <!--&lt;!&ndash; https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-mapreduce-client-common &ndash;&gt;-->
+        <!--<dependency>-->
+            <!--<groupId>org.apache.hadoop</groupId>-->
+            <!--<artifactId>hadoop-mapreduce-client-common</artifactId>-->
+            <!--<version>2.7.1</version>-->
+        <!--</dependency>-->
+
 
     </dependencies>
 
