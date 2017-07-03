@@ -1,6 +1,6 @@
 <component name="ArtifactManager">
-  <artifact type="jar" name="SparkDbTest:jar">
-    <output-path>$PROJECT_DIR$/out/artifacts/SparkDbTest_jar</output-path>
+  <artifact type="jar" name="SparkCrawler:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/SparkCrawler_jar</output-path>
     <root id="archive" name="spark-crawler.jar">
       <element id="module-output" name="spark-crawler" />
       <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/apache/hadoop/hadoop-yarn-server-common/2.2.0/hadoop-yarn-server-common-2.2.0.jar" path-in-jar="/" />

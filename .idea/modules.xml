@@ -4,7 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/hadoop-crawler/hadoop-crawler.iml" filepath="$PROJECT_DIR$/hadoop-crawler/hadoop-crawler.iml" />
       <module fileurl="file://$PROJECT_DIR$/putData/putData.iml" filepath="$PROJECT_DIR$/putData/putData.iml" />
-      <module fileurl="file://$PROJECT_DIR$/spark/spark.iml" filepath="$PROJECT_DIR$/spark/spark.iml" />
+      <module fileurl="file://$PROJECT_DIR$/spark-attack/spark-attack.iml" filepath="$PROJECT_DIR$/spark-attack/spark-attack.iml" />
       <module fileurl="file://$PROJECT_DIR$/spark-crawler/spark-crawler.iml" filepath="$PROJECT_DIR$/spark-crawler/spark-crawler.iml" />
       <module fileurl="file://$PROJECT_DIR$/spider/spider.iml" filepath="$PROJECT_DIR$/spider/spider.iml" />
       <module fileurl="file://$PROJECT_DIR$/suport/suport.iml" filepath="$PROJECT_DIR$/suport/suport.iml" />

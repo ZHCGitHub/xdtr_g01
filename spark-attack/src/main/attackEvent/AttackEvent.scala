@@ -283,7 +283,7 @@ object AttackEvent {
 
         val time = dateFormat1.parse(attack_Time).getTime
         val date = dateFormat2.format(time)
-        rdd.saveAsTextFile("/xdtrdata/G01/data/event/" + date + "-" + time)
+        rdd.saveAsTextFile("/xdtrdata/G01/data/test/" + date + "-" + time)
         //        rdd.saveAsTextFile("/xdtrdata/G01/data/attackLog1/"+date+"-"+time)
       }
     )

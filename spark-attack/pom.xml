@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>spark</artifactId>
+    <artifactId>spark-attack</artifactId>
 
     <dependencies>
         <dependency>
@@ -36,34 +36,34 @@
         <!-- spark streaming连接mysql-->
         <!--&lt;!&ndash; https://mvnrepository.com/artifact/com.jolbox/bonecp &ndash;&gt;-->
         <!--<dependency>-->
-            <!--<groupId>com.jolbox</groupId>-->
-            <!--<artifactId>bonecp</artifactId>-->
-            <!--<version>0.8.0.RELEASE</version>-->
+        <!--<groupId>com.jolbox</groupId>-->
+        <!--<artifactId>bonecp</artifactId>-->
+        <!--<version>0.8.0.RELEASE</version>-->
         <!--</dependency>-->
 
         <!-- spark streaming连接hbase-->
         <!--&lt;!&ndash; https://mvnrepository.com/artifact/org.apache.hbase/hbase-client &ndash;&gt;-->
         <!--<dependency>-->
-            <!--<groupId>org.apache.hbase</groupId>-->
-            <!--<artifactId>hbase-client</artifactId>-->
-            <!--<version>1.1.2</version>-->
+        <!--<groupId>org.apache.hbase</groupId>-->
+        <!--<artifactId>hbase-client</artifactId>-->
+        <!--<version>1.1.2</version>-->
         <!--</dependency>-->
 
         <!-- spark streaming连接hive-->
         <!--&lt;!&ndash; https://mvnrepository.com/artifact/org.apache.spark/spark-hive_2.10 &ndash;&gt;-->
         <!--<dependency>-->
-            <!--<groupId>org.apache.spark</groupId>-->
-            <!--<artifactId>spark-hive_2.10</artifactId>-->
-            <!--<version>1.6.1</version>-->
+        <!--<groupId>org.apache.spark</groupId>-->
+        <!--<artifactId>spark-hive_2.10</artifactId>-->
+        <!--<version>1.6.1</version>-->
         <!--</dependency>-->
 
         <!--hive使用org.apache.hadoop.hive.contrib.serde2.MultiDelimitSerDe
         定义多字段分隔,需要使用此jar包-->
         <!--&lt;!&ndash; https://mvnrepository.com/artifact/org.apache.hive/hive-contrib &ndash;&gt;-->
         <!--<dependency>-->
-            <!--<groupId>org.apache.hive</groupId>-->
-            <!--<artifactId>hive-contrib</artifactId>-->
-            <!--<version>1.2.1</version>-->
+        <!--<groupId>org.apache.hive</groupId>-->
+        <!--<artifactId>hive-contrib</artifactId>-->
+        <!--<version>1.2.1</version>-->
         <!--</dependency>-->
 
 

@@ -8,7 +8,7 @@
         <outputRelativeToContentRoot value="true" />
         <module name="hadoop-crawler" />
         <module name="putData" />
-        <module name="spark" />
+        <module name="spark-attack" />
         <module name="spark-crawler" />
         <module name="spider" />
         <module name="suport" />
@@ -19,6 +19,7 @@
       <module name="hadoop-crawler" target="1.7" />
       <module name="putData" target="1.7" />
       <module name="spark" target="1.7" />
+      <module name="spark-attack" target="1.7" />
       <module name="spark-crawler" target="1.7" />
       <module name="spider" target="1.7" />
       <module name="suport" target="1.7" />

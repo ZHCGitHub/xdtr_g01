@@ -1,111 +1,97 @@
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.*;
-
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.StringTokenizer;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+
 /**
- * ━━━━━━神兽出没━━━━━━
- * 　　　┏┓　　　┏┓
- * 　　┏┛┻━━━┛┻┓
- * 　　┃　　　　　　　┃
- * 　　┃　　　━　　　┃
- * 　　┃　┳┛　┗┳　┃
- * 　　┃　　　　　　　┃
- * 　　┃　　　┻　　　┃
- * 　　┃　　　　　　　┃
- * 　　┗━┓　　　┏━┛
- * 　　　　┃　　　┃神兽保佑, 永无BUG!
- * 　　　　 ┃　　　┃Code is far away from bug with the animal protecting
- * 　　　　┃　　　┗━━━┓
- * 　　　　┃　　　　　　　┣┓
- * 　　　　┃　　　　　　　┏┛
- * 　　　　┗┓┓┏━┳┓┏┛
- * 　　　　　┃┫┫　┃┫┫
- * 　　　　　┗┻┛　┗┻┛
- * ━━━━━━感觉萌萌哒━━━━━━
  * Created by Intellij IDEA
  * User: Created by 宋增旭
  * DateTime: 2017/6/30 9:36
  * 功能：
  * 参考网站：
  */
-public class HadoopCrawler {
-    /**
-     * MapReduceBase类:实现了Mapper和Reducer接口的基类（其中的方法只是实现接口，而未作任何事情）
-     * Mapper接口：
-     * WritableComparable接口：实现WritableComparable的类可以相互比较。所有被用作key的类应该实现此接口。
-     * Reporter 则可用于报告整个应用的运行进度，本例中未使用。
-     */
-    public static class Map extends MapReduceBase implements
-            Mapper<LongWritable, Text, Text, IntWritable> {
-        /**
-         * LongWritable, IntWritable, Text 均是 Hadoop 中实现的用于封装 Java 数据类型的类，
-         * 这些类实现了WritableComparable接口，
-         * 都能够被串行化从而便于在分布式环境中进行数据交换，你可以将它们分别视为long,int,String 的替代品。
-         */
-        private final static IntWritable one = new IntWritable(1);
+
+
+
+
+
+public class  HadoopCrawler {
+    //继承mapper接口，设置map的输入类型为<Object,Text>
+    //输出类型为<Text,IntWritable>
+    public static class Map extends Mapper<Object,Text,Text,IntWritable>{
+        //one表示单词出现一次
+        private static IntWritable one = new IntWritable(1);
+        //word存储切下的单词
         private Text word = new Text();
-        /**
-         * Mapper接口中的map方法：
-         * void map(K1 key, V1 value, OutputCollector<K2,V2> output, Reporter reporter)
-         * 映射一个单个的输入k/v对到一个中间的k/v对
-         * 输出对不需要和输入对是相同的类型，输入对可以映射到0个或多个输出对。
-         * OutputCollector接口：收集Mapper和Reducer输出的<k,v>对。
-         * OutputCollector接口的collect(k, v)方法:增加一个(k,v)对到output
-         */
-        public void map(LongWritable key, Text value,
-                        OutputCollector<Text, IntWritable> output, Reporter reporter)
-                throws IOException {
-            String line = value.toString();
-            StringTokenizer tokenizer = new StringTokenizer(line);
-            while (tokenizer.hasMoreTokens()) {
-                word.set(tokenizer.nextToken());
-                output.collect(word, one);
+        public void map(Object key,Text value,Context context) throws IOException,InterruptedException{
+            //对输入的行切词
+            StringTokenizer st = new StringTokenizer(value.toString());
+            while(st.hasMoreTokens()){
+                word.set(st.nextToken());//切下的单词存入word
+                context.write(word, one);
             }
-
         }
     }
-
-    public static class Reduce extends MapReduceBase implements
-            Reducer<Text, IntWritable, Text, IntWritable> {
-        public void reduce(Text key, Iterator<IntWritable> values,
-                           OutputCollector<Text, IntWritable> output, Reporter reporter)
-                throws IOException {
+    //继承reducer接口，设置reduce的输入类型<Text,IntWritable>
+    //输出类型为<Text,IntWritable>
+    public static class Reduce extends Reducer<Text,IntWritable,Text,IntWritable>{
+        //result记录单词的频数
+        private static IntWritable result = new IntWritable();
+        public void reduce(Text key,Iterable<IntWritable> values,Context context) throws IOException,InterruptedException{
             int sum = 0;
-            while (values.hasNext()) {
-                sum += values.next().get();
+            //对获取的<key,value-list>计算value的和
+            for(IntWritable val:values){
+                sum += val.get();
             }
-            output.collect(key, new IntWritable(sum));
+            //将频数设置到result
+            result.set(sum);
+            //收集结果
+            context.write(key, result);
         }
     }
+    public static void main(String[] args) throws Exception{
+        Configuration conf = new Configuration();
+        conf.set("fs.hdfs.impl",
+                org.apache.hadoop.hdfs.DistributedFileSystem.class.getName()
+        );
 
-    public static void main(String[] args) throws Exception {
-        /**
-         * JobConf：map/reduce的job配置类，向hadoop框架描述map-reduce执行的工作
-         * 构造方法：JobConf()、JobConf(Class exampleClass)、JobConf(Configuration conf)等
-         */
-        JobConf conf = new JobConf(HadoopCrawler.class);
-        conf.setJobName("wordcount");
+        conf.set("fs.file.impl",
+                org.apache.hadoop.fs.LocalFileSystem.class.getName()
+        );
 
-        conf.setOutputKeyClass(Text.class);
-        conf.setOutputValueClass(IntWritable.class);
+        //检查运行命令
+        String[] otherArgs = new GenericOptionsParser(conf,args).getRemainingArgs();
+        if(otherArgs.length != 2){
+            System.err.println("Usage WordCount <int> <out>");
+            System.exit(2);
+        }
+        //配置作业名
+        Job job = new Job(conf,"word count");
+        //配置作业各个类
+        job.setJarByClass(HadoopCrawler.class);
 
-        conf.setMapperClass(Map.class);
-        conf.setCombinerClass(Reduce.class);
-        conf.setReducerClass(Reduce.class);
+        job.setMapperClass(Map.class);
+        job.setCombinerClass(Reduce.class);
+        job.setReducerClass(Reduce.class);
 
-        conf.setInputFormat(TextInputFormat.class);
-        conf.setOutputFormat(TextOutputFormat.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
 
-        FileInputFormat.setInputPaths(conf, new Path("hdfs://192.168.12.9:8020/xdtrdata.txt"));
-        FileOutputFormat.setOutputPath(conf, new Path("hdfs://192.168.12.9:8020/mapred/Crawler/temp"));
+        FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
 
-        JobClient.runJob(conf);
+        //执行job，直到完成
+        job.waitForCompletion(true);
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 
 }

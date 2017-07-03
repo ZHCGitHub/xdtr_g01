@@ -24,10 +24,10 @@
         <module>util</module>
         <module>suport</module>
         <module>spider</module>
-        <module>spark</module>
         <module>putData</module>
         <module>hadoop-crawler</module>
         <module>spark-crawler</module>
+        <module>spark-attack</module>
     </modules>
 
     <dependencies>
