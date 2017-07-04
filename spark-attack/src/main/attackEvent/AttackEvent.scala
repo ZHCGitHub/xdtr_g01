@@ -141,8 +141,8 @@ object AttackEvent {
                 //判断攻击事件Map中是否存在此url
                 if (eventMap.contains(url)) {
                   //攻击事件Map中存在此url，判断网站上一分钟攻击数量是否触发事件结束阈值
-                  //如果触发，更新事件表中的事件结束信息
-                  if (attackArray(0) < thresholdMap(url)._2 * 5) {
+                  //如果触发，将时间信息从eventMap迁移到tmpMap
+                  if (attackArray(0) < thresholdMap(url)._2 * 10) {
                     tmpMap += (url -> (eventMap(url) -> 5))
                     eventMap -= url
                   } else {
@@ -150,12 +150,13 @@ object AttackEvent {
                   }
                 } else {
                   //攻击事件Map中不存在此url，判断网站上一分钟攻击数量是否触发事件开始阈值
-                  if (attackArray(0) > thresholdMap(url)._1 * 10) {
+                  if (attackArray(0) > thresholdMap(url)._1 * 20) {
                     //生成事件id，并向事件Map(eventMap)中添加该事件
                     //判断tmpMap中是否有此url(相当于将同一网站两个时间间隔小于5分钟的时间合并)
                     if (tmpMap.contains(url)) {
                       //如果tmpMap中含有此url，将tmpMap中的事件信息迁移到eventMap中
                       eventMap += (url -> tmpMap(url)._1)
+                      tmpMap -= url
                     } else {
                       val eventId = System.currentTimeMillis()
                       eventMap += (url -> eventId)
@@ -165,9 +166,10 @@ object AttackEvent {
                       MysqlConnectUtil.insert(conn, sql)
                     }
                   } else {
+                    //判断tmpMap中的事件是否在5分钟内没有时间合并，如果没有则更新时间结束标示
                     if (tmpMap(url)._2 == 1) {
                       val stop_Time = Time_Util.beforeTime(currentTime, 5)
-                      val sql = "UPDATE tbc_rp_attack_event SET stop_time = \"" + stop_Time + "\",stop_count = " + attackArray(0) + ",attack_status = 1 WHERE attack_event_id = \"" + eventMap(url) + "\""
+                      val sql = "UPDATE tbc_rp_attack_event SET stop_time = \"" + stop_Time + "\",stop_count = " + attackArray(4) + ",attack_status = 1 WHERE attack_event_id = \"" + eventMap(url) + "\""
                       MysqlConnectUtil.update(conn, sql)
                     }
                   }
