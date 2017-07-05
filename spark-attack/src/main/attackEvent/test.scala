@@ -30,35 +30,28 @@ import scala.collection.mutable
   * 功能：
   * 参考网站：
   */
-object test {
-  def main(args: Array[String]): Unit = {
+object test {  def main(args: Array[String]): Unit = {
 
-    var tmpMap: mutable.Map[String,(String,Int)] = mutable.Map()
+    var tmpMap: mutable.Map[String, (String, Int)] =mutable.Map()
 
-    tmpMap +=("aaa"->("aaa"->5))
+    tmpMap += ("aaa" -> ("aaa" -> 5))
 
-    tmpMap +=("bbb"->("bbb"->5))
+  val aaa: mutable.Map[String, (String, Int)] = mutable.Map("aaa" -> ("aaa" -> 5))
+  val bbb: mutable.Map[String, (String, Int)] = mutable.Map("bbb" -> ("bbb" -> 5))
+//  aaa+=("aaa" -> ("aaa" -> 5))
+//  bbb+=("bbb" -> ("bbb" -> 5))
+  val ccc= aaa++bbb
+  println(ccc)
 
-    tmpMap +=("ccc"->("ccc"->5))
+  val attackArray = new Array[mutable.Map](10)
 
-    tmpMap +=("ddd"->("ddd"->5))
 
-    tmpMap +=("eee"->("eee"->5))
 
-    tmpMap +=("fff"->("fff"->5))
 
-//    tmpMap.keys.foreach{ i =>
-//      println("Key = " + i )
-//      println(" Value1 = " + tmpMap(i)._1 )
-//      println(" Value2 = " + tmpMap(i)._2 )
-//    }
+    val a = "123456#|#abcde#|#654321"
+    val b = a.split("#\\|#")
+//    println(b(1))
 
-    val a=1000
 
-    if (a>100){
-      println("a>100!")
-    }else if (a>200){
-      println("a>200!")
-    }
   }
 }
