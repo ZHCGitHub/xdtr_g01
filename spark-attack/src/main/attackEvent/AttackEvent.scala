@@ -136,6 +136,7 @@ object AttackEvent {
                 i -= 1
               }
 
+
               //判断事件开始阀值与事件结束阀值Map中是否含有此url
               if (thresholdMap.contains(url)) {
                 //判断攻击事件Map中是否存在此url
@@ -166,18 +167,19 @@ object AttackEvent {
                       MysqlConnectUtil.insert(conn, sql)
                     }
                   } else {
-                    //判断tmpMap中的事件是否在5分钟内没有时间合并，如果没有则更新时间结束标示
-                    if (tmpMap(url)._2 == 1) {
-                      val stop_Time = Time_Util.beforeTime(currentTime, 5)
-                      val sql = "UPDATE tbc_rp_attack_event SET stop_time = \"" + stop_Time + "\",stop_count = " + attackArray(4) + ",attack_status = 1 WHERE attack_event_id = \"" + eventMap(url) + "\""
-                      MysqlConnectUtil.update(conn, sql)
+                    if(tmpMap.contains(url)){
+                      //判断tmpMap中的事件是否在5分钟内没有时间合并，如果没有则更新时间结束标示
+                      if (tmpMap(url)._2 == 1) {
+                        val stop_Time = Time_Util.beforeTime(currentTime, 5)
+                        val sql = "UPDATE tbc_rp_attack_event SET stop_time = \"" + stop_Time + "\",stop_count = " + attackArray(4) + ",attack_status = 1 WHERE attack_event_id = \"" + tmpMap(url)._1 + "\""
+                        MysqlConnectUtil.update(conn, sql)
+                      }
                     }
                   }
                 }
 
                 //判断事件Map中是否有此url，如果有的话，去除tmpMap中的url
                 if (eventMap.contains(url)) {
-                  tmpMap -= url
                   //遍历attackArray的数据，将数据插入攻击数量清单表
                   //                  println(">================================开始处理网站" + url + "的攻击数据================================<")
                   var j = 10
@@ -242,9 +244,6 @@ object AttackEvent {
           .saveAsTextFile("/xdtrdata/G01/data/test/" + date + "-" + time)
       }
     )
-    //      .saveAsTextFiles("/xdtrdata/G01/data/attackLog1/"+test.getTime())
-    //      .print()
-    //      .map(x => x.split("\\#\\|\\#")).filter(_ (0) != "0000000000000")
 
 
     ssc.start()

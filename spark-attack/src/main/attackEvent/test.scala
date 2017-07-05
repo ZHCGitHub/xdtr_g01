@@ -33,32 +33,14 @@ import scala.collection.mutable
 object test {
   def main(args: Array[String]): Unit = {
 
-    var tmpMap: mutable.Map[String,(String,Int)] = mutable.Map()
+    var tmpMap: mutable.Map[String, (String, Int)] = mutable.Map()
 
-    tmpMap +=("aaa"->("aaa"->5))
+    tmpMap += ("aaa" -> ("aaa" -> 5))
 
-    tmpMap +=("bbb"->("bbb"->5))
+    val a = "123456"
+    val b = a.substring(0, 1)
+    println((false&&false)||false||false)
 
-    tmpMap +=("ccc"->("ccc"->5))
 
-    tmpMap +=("ddd"->("ddd"->5))
-
-    tmpMap +=("eee"->("eee"->5))
-
-    tmpMap +=("fff"->("fff"->5))
-
-//    tmpMap.keys.foreach{ i =>
-//      println("Key = " + i )
-//      println(" Value1 = " + tmpMap(i)._1 )
-//      println(" Value2 = " + tmpMap(i)._2 )
-//    }
-
-    val a=1000
-
-    if (a>100){
-      println("a>100!")
-    }else if (a>200){
-      println("a>200!")
-    }
   }
 }
