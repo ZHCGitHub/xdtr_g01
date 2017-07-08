@@ -31,10 +31,15 @@ public class PutData {
 //                        "WHERE a.attack_id >= b.id ORDER BY a.attack_id ASC LIMIT 100000";
                 String sql = "SELECT * FROM tbc_ls_attack_log_history1 AS a " +
                         "JOIN (SELECT ROUND(RAND() * (SELECT MAX(attack_id) FROM tbc_ls_attack_log_history1)) AS id)AS b " +
-                        "WHERE a.attack_id >= b.id ORDER BY a.attack_id ASC LIMIT 100000";
+                        "WHERE a.attack_id >= b.id ORDER BY a.attack_id ASC LIMIT 10000";
                 SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");//设置日期格式
                 ResultSet rs = MysqlConnectUtil.select(conn, sql);
                 while (rs.next()) {
+                    try {
+                        Thread.sleep(6);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                     //                Integer attack_id = rs.getInt(1);
                     String g01_id = rs.getString(2);
                     String server_name = rs.getString(3);
