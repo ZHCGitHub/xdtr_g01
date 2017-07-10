@@ -45,6 +45,7 @@ object test {  def main(args: Array[String]): Unit = {
 //  println(ccc)
 
   val ab = new Array[Int](10)
+  val bc =  List("abc","bcd",6,10)
   ab(0)=1
   ab(1)=2
 //  for (i <- 0 until ab.length) {
@@ -72,7 +73,12 @@ object test {  def main(args: Array[String]): Unit = {
 
     attackTypeCount += (start_Time ->tmpMap)
   }
-  print(attackTypeCount)
+//  print(attackTypeCount)
+  val str = "2017-07-08 17:27"
+  println(str.substring(0,4)+str.substring(5,7)+str.substring(8,10))
+//  println(str.length)
+  println()
+  println()
 
 
   }
