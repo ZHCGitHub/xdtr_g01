@@ -35,11 +35,11 @@ public class PutData {
                 SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");//设置日期格式
                 ResultSet rs = MysqlConnectUtil.select(conn, sql);
                 while (rs.next()) {
-                    try {
-                        Thread.sleep(6);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+//                    try {
+//                        Thread.sleep(6);
+//                    } catch (InterruptedException e) {
+//                        e.printStackTrace();
+//                    }
                     //                Integer attack_id = rs.getInt(1);
                     String g01_id = rs.getString(2);
                     String server_name = rs.getString(3);

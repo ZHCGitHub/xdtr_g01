@@ -55,13 +55,17 @@ object AttackEvent {
     //定义一个网站维表信息的Map
     var dicMap: mutable.Map[String, List[Any]] = mutable.Map()
     //定义一个存放事件id与网站url对应关系的Map
-    var eventMap: mutable.Map[String, Long] = mutable.Map()
+    var eventMap: mutable.Map[String, String] = mutable.Map()
     //定义一个存放结束事件的Map(为了获取结束后5分钟的攻击数据)
-    var eventMapTmp: mutable.Map[String, (Long, Int)] = mutable.Map()
+    var eventMapTmp: mutable.Map[String, (String, Int)] = mutable.Map()
     //定义一个Map，存放所有网站的攻击数据
     var attackCountMap: mutable.Map[String, mutable.Map[String, Int]] = mutable.Map()
     //定义一个Map，存放所有网站的所有攻击类型的攻击数量
     var attackTypeCountMap: mutable.Map[String, mutable.Map[String, mutable.Map[String, Int]]] = mutable.Map()
+    //定义一个Map，存放所有事件的开始时间
+    var eventTimeMap: mutable.Map[String, String] = mutable.Map()
+    //定义一个Map,存放所有事件对应的Ip
+    var eventIpMap: mutable.Map[String, mutable.Map[String, Int]] = mutable.Map()
 
 
     //获取当前时间前十分钟的数据
@@ -150,15 +154,20 @@ object AttackEvent {
               if (thresholdMap.contains(url) && dicMap.contains(url)) {
                 val attackMap = line._2
                 val dicList = dicMap(url)
-                //定义一个Array，按照网站攻击时间来存储网站前十分钟的攻击攻击数量
+                //定义一个Array，按照网站攻击时间来存储网站所有的攻击攻击数量
                 var attackCount: mutable.Map[String, Int] = mutable.Map()
                 if (attackCountMap.contains(url)) {
                   attackCount = attackCountMap(url)
                 }
-                //定义一个mutable.Map，按照网站攻击时间来存储网站前十分钟的所有攻击类型的攻击数量
+                //定义一个mutable.Map，按照网站攻击时间来存储网站所有攻击类型的攻击数量
                 var attackTypeCount: mutable.Map[String, mutable.Map[String, Int]] = mutable.Map()
                 if (attackTypeCountMap.contains(url)) {
                   attackTypeCount = attackTypeCountMap(url)
+                }
+                //定义一个mutable.Map，存储事件所有的ip
+                var attackIp: mutable.Map[String, Int] = mutable.Map()
+                if (eventIpMap.contains(url)) {
+                  attackIp = eventIpMap(url)
                 }
 
 
@@ -168,16 +177,16 @@ object AttackEvent {
                 val last_Time = Time_Util.beforeTime(currentTime, 1)
 
 
-                //为attackTypeCount设置初始值
-                val attackTypeTmp = mutable.Map("CC攻击" -> 0, "SQL注入" -> 0, "XSS攻击" -> 0, "后台防护" -> 0,
-                  "应用程序漏洞" -> 0, "敏感词过滤" -> 0, "文件下载" -> 0, "文件解析" -> 0, "溢出" -> 0, "畸形文件" -> 0,
-                  "网页浏览实时防护" -> 0, "网络通信" -> 0, "非法请求" -> 0, "HTTP请求防护" -> 0)
                 //定义一个mutable.Map，按照网站攻击时间来存储网站前十分钟的所有攻击数据清单
                 var attackLog: mutable.Map[String, ArrayBuffer[String]] = mutable.Map()
 
 
                 var i = 10
                 while (i > 0) {
+                  //为attackTypeCount设置初始值
+                  val attackTypeTmp = mutable.Map("CC攻击" -> 0, "SQL注入" -> 0, "XSS攻击" -> 0, "后台防护" -> 0,
+                    "应用程序漏洞" -> 0, "敏感词过滤" -> 0, "文件下载" -> 0, "文件解析" -> 0, "溢出" -> 0, "畸形文件" -> 0,
+                    "网页浏览实时防护" -> 0, "网络通信" -> 0, "非法请求" -> 0, "HTTP请求防护" -> 0)
                   val beforeTime = Time_Util.beforeTime(currentTime, i)
                   if (attackMap.contains(beforeTime)) {
                     //所有类型的攻击数量
@@ -186,25 +195,32 @@ object AttackEvent {
                     val attackTypeMap = attackMap(beforeTime)._1._1
 
                     attackTypeMap.keys.foreach { key =>
-                      //                    println(key + "================>" + attackTypeMap(key))
-                      //                    println(attackMap(beforeTime)._1._1)
                       attackTypeTmp += (key -> attackTypeMap(key))
                       attackTypeCount += (beforeTime -> attackTypeTmp)
                     }
-                    //                println(attackTypeCount)
+
                     //同一网站前十分钟的攻击日志清单
                     val attackLogArray = ArrayBuffer[String]()
                     val attackTypeLogArray = attackMap(beforeTime)._2.split("#%#")
                     for (j <- 0 until attackTypeLogArray.length) {
-                      val tmpLogArray = attackTypeLogArray(j).split("#$#")
+                      val tmpLogArray = attackTypeLogArray(j).split("#\\$#")
                       for (k <- 0 until tmpLogArray.length) {
                         attackLogArray += tmpLogArray(k)
+                        //                        println(tmpLogArray(k))
+                        val list_tmp = tmpLogArray(k).split("#\\|#")
+                        //                        val ip = list_tmp(6)
+                        attackIp += (list_tmp(6) -> 1)
                       }
                     }
                     //将时间节点与对应的攻击日志清单加入到attackLog中
                     attackLog += (beforeTime -> attackLogArray)
+
+
                   } else {
                     attackCount += (beforeTime -> 0)
+                    attackTypeCount += (beforeTime -> mutable.Map("CC攻击" -> 0, "SQL注入" -> 0, "XSS攻击" -> 0, "后台防护" -> 0,
+                      "应用程序漏洞" -> 0, "敏感词过滤" -> 0, "文件下载" -> 0, "文件解析" -> 0, "溢出" -> 0, "畸形文件" -> 0,
+                      "网页浏览实时防护" -> 0, "网络通信" -> 0, "非法请求" -> 0, "HTTP请求防护" -> 0))
                   }
                   i -= 1
                 }
@@ -212,19 +228,9 @@ object AttackEvent {
                 attackCountMap += (url -> attackCount)
                 //更新 attackTypeCountMap中对应网站的数据
                 attackTypeCountMap += (url -> attackTypeCount)
-
-                //                println("############################################################################")
-                //                var j = 10
-                //                while (j > 0) {
-                //                  val beforeTime = Time_Util.beforeTime(currentTime, j)
-                //                  val count = attackCount(beforeTime)
-                //                  println(beforeTime + "=========================>" + count)
-                //                  j -= 1
-                //                }
-                //                println("attackCount=======================>"+attackCount)
-                //                println("attackTypeCount===================>"+attackTypeCount)
-                //                println("############################################################################")
-
+                //更新eventIpMap中的ip数据
+                eventIpMap += (url -> attackIp)
+//                println(attackIp)
 
                 //判断攻击事件Map中是否存在此url
                 if (!eventMap.contains(url)) {
@@ -233,14 +239,17 @@ object AttackEvent {
                   if (attackCount(last_Time) >= thresholdMap(url)._1 * 100) {
                     //如果eventMapTmp中不存在此url，添加新的事件信息
                     if (!eventMapTmp.contains(url)) {
-                      val eventId = System.currentTimeMillis()
+                      //                      val eventId = System.currentTimeMillis()
+                      val eventId = dicList(0) + last_Time.substring(0, 4) + last_Time.substring(5, 7) +
+                        last_Time.substring(8, 10) + last_Time.substring(11, 13) + last_Time.substring(14, 16)
                       eventMap += (url -> eventId)
                       //向攻击事件表中添加新的攻击事件
                       //List(a.site_id,b.dept_id,b.dept_name,b.indu_id,b.indu_name,b.city_id,a.flag_focus,b.flag_goverment)
                       val sql = "INSERT INTO tbc_md_model_attack_day(statis_day,event_id,start_time," +
                         "site_id,site_domain,dept_id,dept_name,indu_id,indu_name,city_id,flag_focus,flag_goverment) " +
-                        "VALUES(\"" + last_Time.substring(0, 4) + last_Time.substring(5, 7) + last_Time.substring(8, 10) + "\",\"" + eventId + "\",\"" + last_Time + ":00\",\"" + dicList(0) + "\",\"" + url + "\",\"" + dicList(1) + "\",\"" + dicList(2) + "\"," + dicList(3) + ",\"" + dicList(4) + "\",\"" + dicList(5) + "\",\"" + dicList(6) + "\",\"" + dicList(7) + "\")"
+                        "VALUES(\"" + last_Time.substring(0, 10) + "\",\"" + eventId + "\",\"" + last_Time + ":00\",\"" + dicList(0) + "\",\"" + url + "\",\"" + dicList(1) + "\",\"" + dicList(2) + "\"," + dicList(3) + ",\"" + dicList(4) + "\",\"" + dicList(5) + "\",\"" + dicList(6) + "\",\"" + dicList(7) + "\")"
                       //                      println(sql )
+                      eventTimeMap += (url -> (last_Time + ":00"))
                       MysqlConnectUtil.insert(conn, sql)
                     } else {
                       //如果eventMapTmp中存在此url，将eventMapTmp中的信息迁移到eventMap
@@ -266,9 +275,21 @@ object AttackEvent {
                         var attack_count_network = 0
                         var attack_count_request = 0
                         var attack_count_http = 0
+                        var ip_count=0
+                        var attack_max_minute = 0
+                        //统计整个事件中所有的攻击数量
+                        println("##########################################################################")
                         attackCount.keys.foreach { key =>
                           attack_count_all += attackCount(key)
+                          println(attack_max_minute<attackCount(key))
+                          println("attack_max_minute==================>"+attack_max_minute)
+                          println("attackCount(key)===================>"+attackCount(key))
+                          if (attack_max_minute<attackCount(key)){
+                            attack_max_minute==attackCount(key)
+                          }
                         }
+                        println("##########################################################################")
+                        //统计整个事件中，各种攻击类型对应的攻击数量
                         attackTypeCount.keys.foreach { key =>
                           attack_count_cc += attackTypeCount(key)("CC攻击")
                           attack_count_sql += attackTypeCount(key)("SQL注入")
@@ -285,8 +306,17 @@ object AttackEvent {
                           attack_count_request += attackTypeCount(key)("非法请求")
                           attack_count_http += attackTypeCount(key)("HTTP请求防护")
                         }
-                        val stop_Time = Time_Util.beforeTime(currentTime, 5)
-                        val sql = "UPDATE tbc_md_model_attack_day SET end_time=\"" + stop_Time + ":59\" " +
+                        //计算整个事件持续时间(秒)
+                        val df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+                        val start_Time = eventTimeMap(url)
+                        val stop_Time = Time_Util.beforeTime(currentTime, 5) + ":59"
+                        val attack_time = (df.parse(stop_Time).getTime-df.parse(start_Time).getTime ) / 1000
+                        //统计整个事件中的ip数量
+                        attackIp.keys.foreach(key=>
+                          ip_count+=1
+                        )
+
+                        val sql = "UPDATE tbc_md_model_attack_day SET end_time=\"" + stop_Time + "\" " +
                           ",attack_count_all='" + attack_count_all + "',attack_count_cc='" + attack_count_cc +
                           "',attack_count_sql='" + attack_count_sql + "',attack_count_xss='" + attack_count_xss +
                           "',attack_count_back='" + attack_count_back + "',attack_count_apply='" + attack_count_apply +
@@ -295,6 +325,9 @@ object AttackEvent {
                           "',attack_count_request='" + attack_count_request + "',attack_count_http='" + attack_count_http +
                           "',attack_count_analysis='" + attack_count_analysis + "',attack_count_overflow='" + attack_count_overflow +
                           "',attack_count_malformed='" + attack_count_malformed +
+                          "',attack_time='" + attack_time +
+                          "',attack_max_minute='" + attack_max_minute +
+                          "',ip_count='" + ip_count +
                           "' WHERE event_id = \"" + eventMapTmp(url)._1 + "\""
                         println(sql)
                         MysqlConnectUtil.update(conn, sql)
