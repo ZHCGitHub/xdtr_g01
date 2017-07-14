@@ -26,12 +26,12 @@ public class PutData {
 
         try {
             for (int i = 0; i < 10000; i++) {
-//                String sql = "SELECT * FROM tbc_attack_log_history AS a " +
-//                        "JOIN (SELECT ROUND(RAND() * (SELECT MAX(attack_id) FROM tbc_attack_log_history)) AS id)AS b " +
-//                        "WHERE a.attack_id >= b.id ORDER BY a.attack_id ASC LIMIT 100000";
-                String sql = "SELECT * FROM tbc_ls_attack_log_history1 AS a " +
-                        "JOIN (SELECT ROUND(RAND() * (SELECT MAX(attack_id) FROM tbc_ls_attack_log_history1)) AS id)AS b " +
-                        "WHERE a.attack_id >= b.id ORDER BY a.attack_id ASC LIMIT 10000";
+                String sql = "SELECT * FROM tbc_attack_log_history AS a " +
+                        "JOIN (SELECT ROUND(RAND() * (SELECT MAX(attack_id) FROM tbc_attack_log_history)) AS id)AS b " +
+                        "WHERE a.attack_id >= b.id ORDER BY a.attack_id ASC LIMIT 100000";
+//                String sql = "SELECT * FROM tbc_ls_attack_log_history1 AS a " +
+//                        "JOIN (SELECT ROUND(RAND() * (SELECT MAX(attack_id) FROM tbc_ls_attack_log_history1)) AS id)AS b " +
+//                        "WHERE a.attack_id >= b.id ORDER BY a.attack_id ASC LIMIT 10000";
                 SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");//设置日期格式
                 ResultSet rs = MysqlConnectUtil.select(conn, sql);
                 while (rs.next()) {
@@ -49,10 +49,10 @@ public class PutData {
                     String source_ip = rs.getString(7);
                     String url = rs.getString(8);
 
-                    if (url.contains("\"")){
+                    if (url.contains("\"")) {
                         url = url.replaceAll("\"", "");
                     }
-                    if (url.contains("\\")){
+                    if (url.contains("\\")) {
                         url = url.replaceAll("\\\\", "");
                     }
 
@@ -82,7 +82,7 @@ public class PutData {
             }
         } catch (SQLException e) {
             e.printStackTrace();
-        }finally {
+        } finally {
             try {
                 conn.close();
             } catch (SQLException e) {

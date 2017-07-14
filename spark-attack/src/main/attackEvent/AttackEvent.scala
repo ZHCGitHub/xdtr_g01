@@ -43,16 +43,16 @@ object AttackEvent {
 
     val logs = KafkaUtils.createStream(ssc, zkQuorum, group, topicMap).map(_._2)
 
-    //从mysql上获取网站阈值数据
+    //获取mysql连接
     val driver = "com.mysql.jdbc.Driver"
     val jdbc = "jdbc:mysql://192.168.12.12:3306/G01?useUnicode=true&characterEncoding=UTF-8"
     val username = "root"
     val password = "123456"
-    //获取mysql连接
-    //    val conn = MysqlConnectUtil.getConn(driver, jdbc, username, password)
+
+    //    val conn = MysqlConnectUtil.getConn
 
     //定义存放网站和开始阈值、结束阈值对应关系的Map
-    //如果要使用可变集，必须明确地导入scala.collection.mutable.Map类
+    //如果要使用可变集，必须明确地导入scala.collection.mutable.Map类(driver, jdbc, username, password)
     var thresholdMap: mutable.Map[String, (Int, Int)] = mutable.Map()
     //定义一个网站维表信息的Map
     var dicMap: mutable.Map[String, List[Any]] = mutable.Map()
@@ -91,7 +91,7 @@ object AttackEvent {
       .map(map => (map._1, (1, map._2)))
     //      .window(Seconds(600), Seconds(60))
 
-    val countsByAttackType = line_Dstream
+    val countsByWeb = line_Dstream
       .reduceByKey((x, y) => (x._1 + y._1, x._2 + y._2))
       .map(x => (x._1.split("#\\|#")(0) + "#|#" + x._1.split("#\\|#")(1),
         ((mutable.Map(x._1.split("#\\|#")(2) -> x._2._1), x._2._1), x._2._2)))
@@ -101,7 +101,7 @@ object AttackEvent {
     //      .cache()
     //      .window(Seconds(600), Seconds(60))
 
-    countsByAttackType
+    countsByWeb
       .foreachRDD(rdd => {
         /**
           * 获取网站阈值表中的信息
@@ -119,7 +119,7 @@ object AttackEvent {
           val url = rs1.getString(1)
           val startThreshold = (rs1.getInt(2) + rs1.getInt(3) + rs1.getInt(4)) / 3
           val stopThreshold = (rs1.getInt(2) + rs1.getInt(3) + rs1.getInt(4)) / 3
-          thresholdMap += (url -> (startThreshold -> stopThreshold))
+          thresholdMap += (url -> (startThreshold * 100 -> stopThreshold * 50))
         }
 
         /**
@@ -130,12 +130,12 @@ object AttackEvent {
           "SELECT c.dept_id,c.dept_name,c.city_id,c.flag_goverment,c.resource_weight AS dept_resource_weight,c.add_time,d.indu_id,d.indu_name,d.resource_weight AS indu_resource_weight " +
           "FROM tbc_dic_department c LEFT JOIN tbc_dic_industry d ON c.indu_id = d.indu_id) b " +
           "ON a.dept_id = b.dept_id"
-        //运行mysql获取表tbc_dic_attack_event_threshold中的网站阈值
+        //运行mysql获取关联的网站维表信息
         val rs2 = MysqlConnectUtil.select(conn, dic_sql)
 
 
-        //先清空startThresholdMap与stopThresholdMap，
-        // 再遍历查询结果，将查询结果写入thresholdMap
+        //先清空dicMap，
+        // 再遍历查询结果，将查询结果写入dicMap
         dicMap.clear()
         while (rs2.next) {
           val url = rs2.getString(1)
@@ -156,7 +156,8 @@ object AttackEvent {
               if (thresholdMap.contains(url) && dicMap.contains(url)) {
                 val attackMap = line._2
                 val dicList = dicMap(url)
-                //定义一个Array，按照网站攻击时间来存储网站所有的攻击攻击数量
+
+                //定义一个Map，按照网站攻击时间来存储网站所有的攻击攻击数量
                 var attackCount: mutable.Map[String, Int] = mutable.Map()
                 if (attackCountMap.contains(url)) {
                   attackCount = attackCountMap(url)
@@ -246,6 +247,8 @@ object AttackEvent {
                   }
                   i -= 1
                 }
+
+
                 //更新 attackCountMap中对应网站的数据
                 attackCountMap += (url -> attackCount)
                 //更新 attackTypeCountMap中对应网站的数据
@@ -258,7 +261,7 @@ object AttackEvent {
                 if (!eventMap.contains(url)) {
                   //攻击事件Map中不存在此url，判断网站上一分钟攻击数量是否触发事件开始阈值
                   //如果触发，判断eventMapTmp中是否存在此url
-                  if (attackCount(last_Time) >= thresholdMap(url)._1 * 100) {
+                  if (attackCount(last_Time) >= thresholdMap(url)._1) {
                     //如果eventMapTmp中不存在此url，添加新的事件信息
                     if (!eventMapTmp.contains(url)) {
                       //                      val eventId = System.currentTimeMillis()
@@ -270,7 +273,7 @@ object AttackEvent {
                       val sql = "INSERT INTO tbc_md_model_attack_day(statis_day,event_id,start_time," +
                         "site_id,site_domain,dept_id,dept_name,indu_id,indu_name,city_id,flag_focus,flag_goverment) " +
                         "VALUES(\"" + last_Time.substring(0, 10) + "\",\"" + eventId + "\",\"" + last_Time + ":00\",\"" + dicList(0) + "\",\"" + url + "\",\"" + dicList(1) + "\",\"" + dicList(2) + "\"," + dicList(3) + ",\"" + dicList(4) + "\",\"" + dicList(5) + "\",\"" + dicList(6) + "\",\"" + dicList(7) + "\")"
-                      //                      println(sql )
+                      println(sql)
                       eventTimeMap += (url -> (last_Time + ":00"))
                       MysqlConnectUtil.insert(conn, sql)
 
@@ -284,21 +287,23 @@ object AttackEvent {
                       eventMap += (url -> eventMapTmp(url)._1)
                       eventMapTmp -= url
                       //向tbc_md_model_attack_list_day中插入前一分钟的攻击日志清单
-                      if(attackLog.contains(last_Time)){
+                      if (attackLog.contains(last_Time)) {
                         val arrayTmp = attackLog(last_Time)
                         putLog(conn, dicList, arrayTmp, eventMap(url), last_Time, url)
                       }
                     }
+
                   } else {
                     if (eventMapTmp.contains(url)) {
                       //向tbc_md_model_attack_list_day中插入前一分钟的攻击日志清单
-                      if(attackLog.contains(last_Time)){
+                      if (attackLog.contains(last_Time)) {
                         val arrayTmp = attackLog(last_Time)
                         putLog(conn, dicList, arrayTmp, eventMapTmp(url)._1, last_Time, url)
                       }
 
-                      //判断eventMapTmp中的事件是否在5分钟内没有时间合并，如果没有则更新时间结束标示
+                      //判断eventMapTmp中的事件是否在5分钟内没有事件合并，如果没有则更新时间结束标示
                       if (eventMapTmp(url)._2 == 1) {
+                        //定义事件总攻击数量与不同攻击类型的攻击数量
                         var attack_count_all = 0
                         var attack_count_cc = 0
                         var attack_count_sql = 0
@@ -314,6 +319,7 @@ object AttackEvent {
                         var attack_count_network = 0
                         var attack_count_request = 0
                         var attack_count_http = 0
+                        //定义ip数量与攻击峰值的变量
                         var ip_count = 0
                         var attack_max_minute = 0
                         //定义攻击数量排名前三的攻击类型的变量
@@ -358,7 +364,7 @@ object AttackEvent {
                         val start_Time = eventTimeMap(url)
                         val stop_Time = Time_Util.beforeTime(currentTime, 5) + ":59"
                         val attack_time = (df.parse(stop_Time).getTime - df.parse(start_Time).getTime) / 1000
-                        //统计整个事件中的ip数量
+                        //统计整个事件中的攻击ip数量
                         attackIp.keys.foreach(key =>
                           ip_count += 1
                         )
@@ -450,15 +456,23 @@ object AttackEvent {
                         println(sql)
                         MysqlConnectUtil.update(conn, sql)
                         attackCountMap -= url
+                        eventMapTmp -= url
                         attackTypeCountMap -= url
+                        eventTimeMap -= url
+                        attackIp -= url
+                      } else {
+                        //eventMapTmp中的标示减1
+                        eventMapTmp += (url -> (eventMapTmp(url)._1 -> (eventMapTmp(url)._2 - 1)))
                       }
+                    }else{
+                      //pass
                     }
                   }
                 } else {
                   //攻击事件Map中存在此url，判断网站上一分钟攻击数量是否触发事件结束阈值
-                  if (attackCount(last_Time) < thresholdMap(url)._2 * 50) {
+                  if (attackCount(last_Time) < thresholdMap(url)._2) {
                     //向tbc_md_model_attack_list_day中插入前一分钟的攻击日志清单
-                    if(attackLog.contains(last_Time)){
+                    if (attackLog.contains(last_Time)) {
                       val arrayTmp = attackLog(last_Time)
                       putLog(conn, dicList, arrayTmp, eventMap(url), last_Time, url)
                     }
@@ -469,7 +483,7 @@ object AttackEvent {
                   } else {
                     //                    println("事件正在进行")
                     //向tbc_md_model_attack_list_day中插入前一分钟的攻击日志清单
-                    if(attackLog.contains(last_Time)){
+                    if (attackLog.contains(last_Time)) {
                       val arrayTmp = attackLog(last_Time)
                       putLog(conn, dicList, arrayTmp, eventMap(url), last_Time, url)
                     }
@@ -487,35 +501,35 @@ object AttackEvent {
                 //              }
 
 
-                //判断事件Map中是否有此url
-                if (eventMap.contains(url)) {
-                  //遍历attackArray的数据，将数据插入攻击数量清单表
-                  //                  println(">================================开始处理网站" + url + "的攻击数据================================<")
-                  var j = 10
-                  while (j > 0) {
-                    val beforeTime = Time_Util.beforeTime(currentTime, j)
-                    val count = attackCount(beforeTime)
-                    val sql = "REPLACE INTO tbc_md_attack_count VALUES(\"" + eventMap(url) + "\",\"" + url + "\",\"" + beforeTime + "\"," + count + ")"
-                    MysqlConnectUtil.insert(conn, sql)
-                    j -= 1
-                  }
-                } else if (eventMapTmp.contains(url)) {
-                  //遍历attackArray的数据，将数据插入攻击数量清单表
-                  var j = 10
-                  while (j > 0) {
-                    val beforeTime = Time_Util.beforeTime(currentTime, j)
-                    val count = attackCount(beforeTime)
-                    val sql = "REPLACE INTO tbc_md_attack_count VALUES(\"" + eventMapTmp(url)._1 + "\",\"" + url + "\",\"" + beforeTime + "\"," + count + ")"
-                    MysqlConnectUtil.insert(conn, sql)
-                    j -= 1
-                  }
-                  //让tmpMap中的标示减1
-                  eventMapTmp += (url -> (eventMapTmp(url)._1 -> (eventMapTmp(url)._2 - 1)))
-                  //当tmpMap中的标示为0时，从tmpMap中移除该url
-                  if (eventMapTmp(url)._2 == 0) {
-                    eventMapTmp -= url
-                  }
-                }
+                //                //判断事件Map中是否有此url
+                //                if (eventMap.contains(url)) {
+                //                  //遍历attackArray的数据，将数据插入攻击数量清单表
+                //                  //                  println(">================================开始处理网站" + url + "的攻击数据================================<")
+                //                  var j = 10
+                //                  while (j > 0) {
+                //                    val beforeTime = Time_Util.beforeTime(currentTime, j)
+                //                    val count = attackCount(beforeTime)
+                //                    val sql = "REPLACE INTO tbc_md_attack_count VALUES(\"" + eventMap(url) + "\",\"" + url + "\",\"" + beforeTime + "\"," + count + ")"
+                //                    MysqlConnectUtil.insert(conn, sql)
+                //                    j -= 1
+                //                  }
+                //                } else if (eventMapTmp.contains(url)) {
+                //                  //遍历attackArray的数据，将数据插入攻击数量清单表
+                //                  var j = 10
+                //                  while (j > 0) {
+                //                    val beforeTime = Time_Util.beforeTime(currentTime, j)
+                //                    val count = attackCount(beforeTime)
+                //                    val sql = "REPLACE INTO tbc_md_attack_count VALUES(\"" + eventMapTmp(url)._1 + "\",\"" + url + "\",\"" + beforeTime + "\"," + count + ")"
+                //                    MysqlConnectUtil.insert(conn, sql)
+                //                    j -= 1
+                //                  }
+                //                  //让tmpMap中的标示减1
+                //                  eventMapTmp += (url -> (eventMapTmp(url)._1 -> (eventMapTmp(url)._2 - 1)))
+                //                  //当tmpMap中的标示为0时，从tmpMap中移除该url
+                //                  if (eventMapTmp(url)._2 == 0) {
+                //                    eventMapTmp -= url
+                //                  }
+                //                }
 
               } else {
 
@@ -546,7 +560,7 @@ object AttackEvent {
         "\",\"" + dicList(2) + "\",\"" + url + "\",\"" + dicList(0) + "\",\"" + dicList(3) +
         "\",\"" + dicList(4) + "\",\"" + log(5) + "\",\"" + log(6) + "\",\"" + log(7).replaceAll("\"", "") +
         "\",\"" + log(8) + "\"," + log(9) + ",\"" + log(12) + "\",\"" + log(13) + "\",\"" + log(15) + "\")"
-      println(sql)
+      //      println(sql)
       MysqlConnectUtil.insert(conn, sql)
     }
   }
