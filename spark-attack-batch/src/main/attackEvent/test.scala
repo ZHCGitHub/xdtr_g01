@@ -14,8 +14,11 @@ object test {
     var cal: Calendar = Calendar.getInstance()
     cal.add(Calendar.DATE, -1)
     var yesterday = dateFormat.format(cal.getTime())
-    println(Time_Util.beforeTime(yesterday+" 23:59",1439))
+//    println(Time_Util.beforeTime(yesterday+" 23:59",1439))
 
+    for( a <- 0 until 10){
+      println( "Value of a: " + a );
+    }
   }
 
 }
