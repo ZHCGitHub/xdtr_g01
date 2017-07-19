@@ -1,6 +1,6 @@
 import java.sql.{Connection, DriverManager}
 import java.text.SimpleDateFormat
-import java.util.Calendar
+import java.util.{Calendar, Date}
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.JdbcRDD
@@ -34,6 +34,7 @@ object AttackEventBatch {
     val yesterday = "2017-07-17"
 
 
+    val time1 = new Date().getTime
     val rdd = new JdbcRDD(
       sc,
       () => {
@@ -47,30 +48,51 @@ object AttackEventBatch {
         + "#|#" + r.getString(8) + "#|#" + r.getString(9) + "#|#" + r.getString(10) + "#|#" + r.getString(11)
         + "#|#" + r.getString(12) + "#|#" + r.getString(13) + "#|#" + r.getString(14) + "#|#" + r.getString(15)
         + "#|#" + r.getString(16) + "#|#" + r.getString(17)
-    )
-
+    ).repartition(1000)
+    println("jdbcRdd的分区数量:" + rdd.partitions.length)
 
     //list中位标对应的字段名称
     //list(0-->attack_id,1-->g01_id,2-->server_name,3-->site_domain,4-->site_id,5-->source_addr,
     // 6-->source_ip,7-->url,8-->attack_type,9-->attack_level,10-->attack_violdate,11-->handle_tyle,
     // 12-->attack_time,13-->attack_time_str,14-->add_time,15-->city_id,16-->state)
-    val line_rdd = rdd.map(line => line.split("#\\|#"))
+
+    val line_rdd1 = rdd.map(line => line.split("#\\|#"))
       .map(
         list => (list(3) + "#|#" + list(12).substring(0, 16) + "#|#" + list(8),
           list(0) + "#|#" + list(1) + "#|#" + list(2) + "#|#" + list(3) + "#|#"
             + list(4) + "#|#" + list(5) + "#|#" + list(6) + "#|#" + list(7) + "#|#" + list(8) + "#|#"
             + list(9) + "#|#" + list(10) + "#|#" + list(11) + "#|#" + list(12) + "#|#" + list(13) + "#|#"
             + list(14) + "#|#" + list(15) + "#|#" + list(16) + "#$#"))
-      .map(map => (map._1, (1, map._2)))
+    println("line_rdd1的分区数量:" + line_rdd1.partitions.length)
+
+
+    val line_rdd2 = line_rdd1.map(map => (map._1, (1, map._2)))
+    println("line_rdd2的分区数量:" + line_rdd2.partitions.length)
+
 
     //将一条一条的攻击数据合并成每个网站一条数据
-    val countsByWeb = line_rdd
+    val countsByWeb1 = line_rdd2
       .reduceByKey((x, y) => (x._1 + y._1, x._2 + y._2))
+    println("countsByWeb1的分区数量:" + countsByWeb1.partitions.length)
+
+    val countsByWeb2 = countsByWeb1
       .map(x => (x._1.split("#\\|#")(0) + "#|#" + x._1.split("#\\|#")(1),
         ((mutable.Map(x._1.split("#\\|#")(2) -> x._2._1), x._2._1), x._2._2)))
+    println("countsByWeb2的分区数量:" + countsByWeb2.partitions.length)
+
+    val countsByWeb3 = countsByWeb2
       .reduceByKey((x, y) => ((x._1._1 ++ y._1._1, x._1._2 + y._1._2), x._2 + "#$#" + y._2))
+    println("countsByWeb3的分区数量:" + countsByWeb3.partitions.length)
+
+
+    val countsByWeb4 = countsByWeb3
       .map(x => (x._1.split("#\\|#")(0), mutable.Map(x._1.split("#\\|#")(1) -> x._2)))
-      .reduceByKey(_ ++ _).cache()
+    println("countsByWeb4的分区数量:" + countsByWeb4.partitions.length)
+
+    val countsByWeb5 = countsByWeb4
+      .reduceByKey(_ ++ _)
+    println("countsByWeb5的分区数量:" + countsByWeb5.partitions.length)
+
 
     //定义存放网站和开始阈值、结束阈值对应关系的Map
     //如果要使用可变集，必须明确地导入scala.collection.mutable.Map类(driver, jdbc, username, password)
@@ -117,7 +139,6 @@ object AttackEventBatch {
     //运行mysql获取关联的网站维表信息
     val rs2 = MysqlConnectUtil.select(conn, dic_sql)
 
-    println(dic_sql)
 
     //再遍历查询结果，将查询结果写入dicMap
     dicMap.clear()
@@ -129,12 +150,10 @@ object AttackEventBatch {
       dicMap += (url -> dicList)
     }
 
-
     /**
       * 遍历rdd，得到每一条数据(每一条数据相当于存储每个网站的所有数据)
       */
-    countsByWeb
-      .collect()
+    countsByWeb5.collect()
       .foreach(
         line => {
 
@@ -231,10 +250,6 @@ object AttackEventBatch {
             while (i >= 0) {
               val beforeTime = Time_Util.beforeTime(yesterday + " 23:59", i)
               attackCount(beforeTime)
-
-              //              if (attackCount(beforeTime) > 0) {
-              //                println(beforeTime + "=================>" + attackCount(beforeTime))
-              //              }
 
 
               //判断攻击事件Map中是否存在此url
@@ -352,7 +367,7 @@ object AttackEventBatch {
                         //统计整个事件中，各种攻击类型对应的攻击数量
                         while (true) {
                           val tmpTime = Time_Util.beforeTime(start_Time, k)
-//                          println(tmpTime + "======================>" + attackTypeCount(tmpTime))
+                          //                          println(tmpTime + "======================>" + attackTypeCount(tmpTime))
                           attack_count_cc += attackTypeCount(tmpTime)("CC攻击")
                           attack_count_sql += attackTypeCount(tmpTime)("SQL注入")
                           attack_count_xss += attackTypeCount(tmpTime)("XSS攻击")
@@ -397,8 +412,6 @@ object AttackEventBatch {
                       attackIp.keys.foreach(_ =>
                         ip_count += 1
                       )
-                      println("attackIp==============================>"+attackIp)
-                      println("ip_count==============================>"+ip_count)
 
                       //统计攻击次数排名前三的攻击类型
                       var tmpMap: mutable.Map[String, Int] = mutable.Map()
@@ -485,7 +498,7 @@ object AttackEventBatch {
                         "',score_attack_max='" + score_attack_max +
                         "',score_attack_type='" + score_attack_type +
                         "' WHERE event_id = \"" + eventMapTmp(url)._1 + "\""
-                      println(sql)
+                      //                      println(sql)
                       MysqlConnectUtil.update(conn, sql)
                       attackLog -= url
                       eventMapTmp -= url
@@ -528,11 +541,12 @@ object AttackEventBatch {
               i -= 1
             }
 
-
           }
 
         }
       )
+    val time2 = new Date().getTime
+    println("生成攻击事件耗时======================>" + (time2 - time1) / 1000)
 
 
     sc.stop()
