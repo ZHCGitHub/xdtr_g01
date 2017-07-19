@@ -1,6 +1,8 @@
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date}
 
+import scala.collection.mutable
+
 /**
   * Created by Intellij IDEA
   * User: Created by 宋增旭
@@ -17,11 +19,27 @@ object test {
 //    println(Time_Util.beforeTime(yesterday+" 23:59",1439))
 
     val a = new Date().getTime
-    println(a)
     Thread.sleep(1000)
     val b = new Date().getTime
-    println()
-    println((b-a)/1000)
+
+
+
+    var eventMapTmp: mutable.Map[String, (String, Int)] = mutable.Map()
+    eventMapTmp +=("aaa"->("test"->5))
+
+    eventMapTmp+=("aaa"->(eventMapTmp("aaa")._1->(eventMapTmp("aaa")._2-1)))
+    eventMapTmp+=("aaa"->(eventMapTmp("aaa")._1->(eventMapTmp("aaa")._2-1)))
+    eventMapTmp+=("aaa"->(eventMapTmp("aaa")._1->(eventMapTmp("aaa")._2-1)))
+
+    eventMapTmp-="aaa"
+
+    eventMapTmp += ("aaa" -> ("test" -> 4))
+
+
+
+    println(eventMapTmp)
+
+
 
 
 
