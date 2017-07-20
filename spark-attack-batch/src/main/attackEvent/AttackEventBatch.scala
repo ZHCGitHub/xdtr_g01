@@ -42,7 +42,7 @@ object AttackEventBatch {
         DriverManager.getConnection("jdbc:mysql://192.168.12.12:3306/G01?useUnicode=true&characterEncoding=UTF-8", "root", "123456")
       },
       "SELECT * FROM tbc_ls_attack_log_history WHERE attack_time_str=\"" + yesterday + "\" AND attack_id >=? AND attack_id<=?",
-      1, 999000000, 3,
+      1, 99900000000L, 3,
       r => r.getString(1) + "#|#" + r.getString(2) + "#|#" + r.getString(3)
         + "#|#" + r.getString(4) + "#|#" + r.getString(5) + "#|#" + r.getString(6) + "#|#" + r.getString(7)
         + "#|#" + r.getString(8) + "#|#" + r.getString(9) + "#|#" + r.getString(10) + "#|#" + r.getString(11)
@@ -522,6 +522,7 @@ object AttackEventBatch {
 
         }
 
+        conn.close()
       })
     )
 
@@ -539,17 +540,19 @@ object AttackEventBatch {
     for (i <- arrayTmp.indices) {
       if (arrayTmp(i) != "") {
         val log = arrayTmp(i).split("#\\|#")
-        //list中位标对应的字段名称
-        //list(0-->attack_id,1-->g01_id,2-->server_name,3-->site_domain,4-->site_id,5-->source_addr,
-        // 6-->source_ip,7-->url,8-->attack_type,9-->attack_level,10-->attack_violdate,11-->handle_tyle,
-        // 12-->attack_time,13-->attack_time_str,14-->add_time,15-->city_id,16-->state)
-        val sql = "INSERT INTO tbc_md_model_attack_list_day (statis_day,event_id,dept_id,dept_name," +
-          "site_domain,site_id,indu_id,indu_name,source_addr,source_ip,url,attack_type,attack_level,attack_time," +
-          "attack_time_str,city_id) VALUES(\"" + last_Time.substring(0, 10) + "\",\"" + eventId + "\",\"" + dicList(1) +
-          "\",\"" + dicList(2) + "\",\"" + url + "\",\"" + dicList.head + "\",\"" + dicList(3) +
-          "\",\"" + dicList(4) + "\",\"" + log(5) + "\",\"" + log(6) + "\",\"" + log(7).replaceAll("\"", "") +
-          "\",\"" + log(8) + "\"," + log(9) + ",\"" + log(12) + "\",\"" + log(13) + "\",\"" + log(15) + "\")"
-        MysqlConnectUtil.insert(conn, sql)
+        if (log.length==17){
+          //list中位标对应的字段名称
+          //list(0-->attack_id,1-->g01_id,2-->server_name,3-->site_domain,4-->site_id,5-->source_addr,
+          // 6-->source_ip,7-->url,8-->attack_type,9-->attack_level,10-->attack_violdate,11-->handle_tyle,
+          // 12-->attack_time,13-->attack_time_str,14-->add_time,15-->city_id,16-->state)
+          val sql = "INSERT INTO tbc_md_model_attack_list_day (statis_day,event_id,dept_id,dept_name," +
+            "site_domain,site_id,indu_id,indu_name,source_addr,source_ip,url,attack_type,attack_level,attack_time," +
+            "attack_time_str,city_id) VALUES(\"" + last_Time.substring(0, 10) + "\",\"" + eventId + "\",\"" + dicList(1) +
+            "\",\"" + dicList(2) + "\",\"" + url + "\",\"" + dicList.head + "\",\"" + dicList(3) +
+            "\",\"" + dicList(4) + "\",\"" + log(5) + "\",\"" + log(6) + "\",\"" + log(7).replaceAll("\"", "") +
+            "\",\"" + log(8) + "\"," + log(9) + ",\"" + log(12) + "\",\"" + log(13) + "\",\"" + log(15) + "\")"
+          MysqlConnectUtil.insert(conn, sql)
+        }
       }
 
     }

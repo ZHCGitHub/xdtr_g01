@@ -14,10 +14,6 @@ import java.util.concurrent.*;
  * 参考网站：
  */
 public class CatchAllLink extends Thread {
-    //加载日志工具类
-//    private static LogUtil logUtil = new LogUtil();
-//    private static Log log = (Log) logUtil.getLog();
-
 
     private static Connection conn;
     private static String path;
@@ -51,7 +47,6 @@ public class CatchAllLink extends Thread {
 
         //将mysql连接和查询sql传给getSelect()获取查询结果
         String sql = "SELECT * FROM url LIMIT " + number;
-//        String sql = "SELECT url FROM url WHERE url NOT IN (SELECT url FROM tbc_dic_url_crawl_state)";
         ResultSet rs = MysqlConnectUtil.select(conn, sql);
         String url;
 

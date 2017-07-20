@@ -12,26 +12,23 @@ import java.net.URL;
  * 参考网站：
  */
 public class WebCatchSource {
-    //加载日期工具类
-//    private static LogUtil logUtil = new LogUtil();
-//    private static Log log = (Log) logUtil.getLog();
 
-    HttpURLConnection connection = null;
+    private HttpURLConnection connection = null;
 
     /**
      * 将爬取的网页内容写入指定文件中
      *
-     * @param htmlUrl  网站url
+     * @param link  网站url(开头带有http或https)
      * @param charset  网站编码格式
      * @param filePath 文件存储路径
      */
-    boolean catchHtml(String htmlUrl, String charset, String filePath) {
+    boolean catchHtml(String link, String charset, String filePath) {
 
         BufferedReader reader = null;
         OutputStreamWriter out = null;
 
         try {
-            URL url = new URL(htmlUrl);
+            URL url = new URL(link);
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
             connection.setConnectTimeout(2000);
@@ -46,19 +43,13 @@ public class WebCatchSource {
                 out = new OutputStreamWriter(new FileOutputStream(filePath), "utf-8");
                 while ((line = reader.readLine()) != null) {
                     line = line + "\r\n";
-//                    buff = line.getBytes();
-//                    out.write(buff);
                     out.append(line);
                 }
-
                 return true;
             } else {
                 return false;
             }
-
         } catch (Exception e) {
-//            e.printStackTrace();
-
             return false;
         } finally {
             //关闭文件流
@@ -80,10 +71,10 @@ public class WebCatchSource {
 
     public static void main(String[] args) {
         WebCatchSource webCatchSource = new WebCatchSource();
-        String url = "http://0371bz.com/news/18.html";
-        String charset = "utf-8";
-        String path = "E:\\g01_write\\";
-        String fileName = "aaa.txt";
+        String url = "http://www.hncourt.gov.cn";
+        String charset = "gb2312";
+        String path = "F:\\爬虫\\";
+        String fileName = "test1000001_new.txt";
         System.out.println(webCatchSource.catchHtml(url, charset, path + fileName));
     }
 }

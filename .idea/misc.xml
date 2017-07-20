@@ -8,6 +8,8 @@
     </option>
     <option name="ignoredFiles">
       <set>
+        <option value="$PROJECT_DIR$/hadoop-crawler/pom.xml" />
+        <option value="$PROJECT_DIR$/spark-crawler/pom.xml" />
         <option value="$PROJECT_DIR$/spark/pom.xml" />
       </set>
     </option>

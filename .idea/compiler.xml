@@ -6,11 +6,9 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="hadoop-crawler" />
         <module name="putData" />
         <module name="spark-attack" />
         <module name="spark-attack-batch" />
-        <module name="spark-crawler" />
         <module name="spider" />
         <module name="suport" />
         <module name="util" />

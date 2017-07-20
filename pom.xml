@@ -25,10 +25,7 @@
         <module>suport</module>
         <module>spider</module>
         <module>putData</module>
-        <module>hadoop-crawler</module>
-        <module>spark-crawler</module>
         <module>spark-attack</module>
-        <module>sparkattackbatch</module>
         <module>spark-attack-batch</module>
     </modules>
 
