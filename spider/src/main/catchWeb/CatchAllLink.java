@@ -1,4 +1,5 @@
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.util.Date;
@@ -18,37 +19,38 @@ public class CatchAllLink extends Thread {
     private static Connection conn;
     private static String path;
     private String url;
+    private String site_id;
     private static int depth_control;
 
-    private CatchAllLink(String url) {
+    private CatchAllLink(String url,String site_id) {
         this.url = url;
+        this.site_id = site_id;
     }
 
     public static void main(String[] args) {
-//        String path = "E:\\g01_write\\";
-//        int number = 8723;
+//        String path = "F:\\爬虫\\";
+        int number = 10000;
         String path = args[0];
-        int number = Integer.parseInt(args[1]);
 
-        int depth_control = 3;
-
+        int depth_control = Integer.parseInt(args[1]);
         //设置mysql连接的参数
         String driver = "com.mysql.jdbc.Driver";
-        String jdbc = "jdbc:mysql://192.168.12.12:3306/G01?useUnicode=true&characterEncoding=UTF-8";
+        String jdbc = "jdbc:mysql://192.168.12.125:3306/gov01_v3?useUnicode=true&characterEncoding=UTF-8";
         String username = "root";
-        String password = "123456";
+        String password = "123";
         //获取mysql连接
         Connection conn = MysqlConnectUtil.getConn(driver, jdbc, username, password);
 
         //创建线程池
-        ExecutorService pool = Executors.newFixedThreadPool(100);
+        ExecutorService pool = Executors.newFixedThreadPool(50);
 //        ExecutorService pool = Executors.newCachedThreadPool();//无界线程池
 
 
         //将mysql连接和查询sql传给getSelect()获取查询结果
-        String sql = "SELECT * FROM url LIMIT " + number;
+        String sql = "SELECT site_id,site_domain FROM tbc_dic_site";
         ResultSet rs = MysqlConnectUtil.select(conn, sql);
         String url;
+        String site_id;
 
         setConn(conn);
         setPath(path);
@@ -57,13 +59,13 @@ public class CatchAllLink extends Thread {
         try {
             int i = 0;
             while (rs.next()) {
-                url = rs.getString(1);
+                site_id = rs.getString(1);
+                url = rs.getString(2);
                 i++;
                 System.out.println("启动线程" + i + "=================" + url);
-                System.out.println("sql====================" + sql);
                 //设置线程池等待,当线程池中有线程空闲时，添加任务
                 System.out.println("/n------------线程池线程数量(" + ((ThreadPoolExecutor) pool).getActiveCount() + ")-----------");
-                pool.execute(new CatchAllLink(url));
+                pool.execute(new CatchAllLink(url,site_id));
             }
 
             pool.shutdown();
@@ -104,13 +106,18 @@ public class CatchAllLink extends Thread {
         if (encoding != null) {
             //根据url爬取网页上的所有网站链接
             if (depth_control >= 1 && depth_control <= 3) {
-                Map<String, Boolean> map1 = webCrawlerDepthFirst.mySpider("http://" + url,
-                        encoding, path, depth_control, conn);
+                Map<String, Boolean> map1 = null;
+                try {
+                    map1 = webCrawlerDepthFirst.mySpider("http://" + url,
+                            encoding, path,site_id, depth_control, conn);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
 
                 for (Map.Entry<String, Boolean> mapping : map1.entrySet()) {
                     String link = mapping.getKey();
                     System.out.println("链接：" + link);
-                    String sql = "REPLACE INTO tbc_dic_url_link VALUES(\"" + url + "\",\"" + link + "\")";
+                    String sql = "REPLACE INTO tbc_dic_site_link VALUES(\"" + url + "\",\"" + link + "\")";
                     System.out.println(sql);
                     MysqlConnectUtil.insert(conn, sql);
                 }
@@ -120,18 +127,17 @@ public class CatchAllLink extends Thread {
             }
         } else {
             System.out.println("无法获取网站编码格式");
-            String sql = "REPLACE INTO tbc_dic_url_crawl_state VALUES(\"" + url + "\",1 )";
-            MysqlConnectUtil.insert(conn, sql);
-            System.out.println(sql);
+//            String sql = "REPLACE INTO tbc_dic_url_crawl_state VALUES(\"" + url + "\",1 )";
+//            MysqlConnectUtil.insert(conn, sql);
+//            System.out.println(sql);
         }
         Long time2 = (new Date()).getTime();
-
         long time = TimeUnit.MILLISECONDS.toSeconds(time2 - time1);
 
 
-        String runTime = "REPLACE INTO tbc_dic_url_crawl_time VALUES(\"" + url + "\"," + time + " )";
+//        String runTime = "REPLACE INTO tbc_dic_url_crawl_time VALUES(\"" + url + "\"," + time + " )";
         System.out.println("网站" + url + "爬取耗时" + time + "秒");
-        MysqlConnectUtil.insert(conn, runTime);
+//        MysqlConnectUtil.insert(conn, runTime);
     }
 
 

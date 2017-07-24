@@ -1,5 +1,4 @@
 import java.io.*;
-import java.net.URL;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
@@ -28,7 +27,7 @@ public class GetWebChange {
         conn.close();
     }
 
-    private boolean getTitle(Connection conn, String link, String site_id, String charset, String path) throws IOException {
+    public boolean getTitle(Connection conn, String link, String site_id, String charset, String path) throws IOException {
         WebCatchSource webCatchSource = new WebCatchSource();
 
         Map<String, String> newMap = new HashMap();
@@ -61,10 +60,9 @@ public class GetWebChange {
 
         //获取网站源码存为file_tmp
         Boolean catchStatus = webCatchSource.catchHtml(link, charset, filePath_tmp);
-        System.out.println(catchStatus);
+
         if (!catchStatus) {
             catchStatus = webCatchSource.catchHtml(link, charset, filePath_tmp);
-            System.out.println(catchStatus);
             if (!catchStatus) {
                 catchStatus = webCatchSource.catchHtml(link, charset, filePath_tmp);
                 if (!catchStatus) {
@@ -101,6 +99,13 @@ public class GetWebChange {
                 oldMap.put(list[0], list[1]);
             }
 
+            //定义一个变量存储上一次的总量
+            Double old_count = 0.0;
+            for (String ignored : oldMap.keySet()) {
+                old_count += 1;
+            }
+
+
             //遍历newMap,剔除newMap与oldMap中相同的(key,value)
             for (String in : newMap.keySet()) {
                 if (oldMap.containsKey(in)) {
@@ -118,34 +123,62 @@ public class GetWebChange {
             }
 
 
+            //定义一个变量new_count,存储改变的记录数量
+            Double new_count = 0.0;
             //分别遍历两个Map，组合成text文本old_content
-            String changed_content = "";
-            String old_content = "";
+            StringBuilder changed_content = new StringBuilder();
+            StringBuilder old_content = new StringBuilder();
             for (String in : newMap.keySet()) {
-                changed_content = changed_content + in + "#|#" + newMap.get(in) + "\r\n";
-            }
-            System.out.println(changed_content);
-            for (String in : oldMap.keySet()) {
-                old_content = old_content + in + "#|#" + oldMap.get(in) + "\r\n";
+                changed_content.append(in).append("#|#").append(newMap.get(in)).append("\r\n");
+                new_count += 1;
             }
 
-            Date d = new Date();
-            SimpleDateFormat sdf1 = new SimpleDateFormat("yyyy-MM-dd");
-            SimpleDateFormat sdf2 = new SimpleDateFormat("yyyyMMddHHmmssSSS");
-            SimpleDateFormat sdf3 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            //判断new_count和old_count是否为0，如果为0则返回false
+            //如果都不为0，则获取网站变化率以及网站变化清单
+            if (new_count==0||old_count==0){
+                return  false;
+            }else {
 
-            String statis_day = sdf1.format(d);
-            String check_time = sdf2.format(d);
-            String start_time = sdf3.format(d);
+                for (String in : oldMap.keySet()) {
+                    old_content.append(in).append("#|#").append(oldMap.get(in)).append("\r\n");
+                }
 
-            System.out.println("格式化后的日期：" + statis_day);
+                Date d = new Date();
+                SimpleDateFormat sdf1 = new SimpleDateFormat("yyyy-MM-dd");
+                SimpleDateFormat sdf2 = new SimpleDateFormat("yyyyMMddHHmmssSSS");
+                SimpleDateFormat sdf3 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-            String sql = "INSERT INTO tb_md_site_alarm_chage_detail(statis_day,site_id,site_domain,check_time,start_time,old_content,changed_content) " +
-                    "VALUES(\"" + statis_day + "\"," + site_id + ",\"" + url + "\",\"" + check_time + "\",\"" + start_time + "\",\"" + old_content + "\",\"" + changed_content + "\")";
+                String statis_day = sdf1.format(d);
+                String check_time = sdf2.format(d);
+                String start_time = sdf3.format(d);
 
-            System.out.println(sql);
-            MysqlConnectUtil.insert(conn, sql);
+
+                String sql1 = "INSERT INTO tb_md_site_alarm_chage_detail(statis_day,site_id,site_domain,check_time,start_time,old_content,changed_content) " +
+                        "VALUES(\"" + statis_day + "\"," + site_id + ",\"" + url + "\",\"" + check_time + "\",\"" + start_time + "\",\"" + old_content + "\",\"" + changed_content + "\")";
+
+//            System.out.println(sql1);
+                MysqlConnectUtil.insert(conn, sql1);
+
+                String change_rate = String.format("%.2f", (new_count / old_count) * 100);
+                Double change = Double.valueOf(change_rate);
+                int alarm_level;
+                if (change >= 30) {
+                    alarm_level = 1;
+                } else if (change >= 20 && change < 30) {
+                    alarm_level = 2;
+                } else {
+                    alarm_level = 3;
+                }
+
+                String sql2 = "INSERT INTO tb_md_site_alarm_chage_list(statis_day,site_id,site_domain,check_time,start_time,change_rate,alarm_level,flag_dealt) " +
+                        "VALUES(\"" + statis_day + "\"," + site_id + ",\"" + url + "\",\"" + check_time + "\",\"" + start_time + "\",\"" + change_rate + "\"," + alarm_level + ",\"0\");";
+
+                //            System.out.println(sql2);
+                MysqlConnectUtil.insert(conn, sql2);
+            }
+
         }
+
         return true;
     }
 

@@ -18,31 +18,22 @@ object test {
     var yesterday = dateFormat.format(cal.getTime())
 //    println(Time_Util.beforeTime(yesterday+" 23:59",1439))
 
-    val a = new Date().getTime
-    Thread.sleep(1000)
-    val b = new Date().getTime
 
+    getLastMonth("2017-07-21")
 
+  }
 
-    var eventMapTmp: mutable.Map[String, (String, Int)] = mutable.Map()
-    eventMapTmp +=("aaa"->("test"->5))
+  def getLastMonth(date:String):String={
 
-    eventMapTmp+=("aaa"->(eventMapTmp("aaa")._1->(eventMapTmp("aaa")._2-1)))
-    eventMapTmp+=("aaa"->(eventMapTmp("aaa")._1->(eventMapTmp("aaa")._2-1)))
-    eventMapTmp+=("aaa"->(eventMapTmp("aaa")._1->(eventMapTmp("aaa")._2-1)))
+    val sdf = new SimpleDateFormat("yyyy-MM-dd")
+    val cal = Calendar.getInstance
+    cal.set(date.substring(0, 4).toInt, date.substring(5, 7).toInt, date.substring(8, 10).toInt)
+    cal.add(Calendar.MONTH, -2)
+    val dateBefore = cal.getTime
 
-    eventMapTmp-="aaa"
-
-    eventMapTmp += ("aaa" -> ("test" -> 4))
-
-
-
-    println(eventMapTmp)
-
-
-
-
-
+    val paramStartDate = sdf.format(dateBefore)
+    System.out.println(paramStartDate.substring(0, 4) + paramStartDate.substring(5, 7))
+    paramStartDate.substring(0, 4) + paramStartDate.substring(5, 7)
   }
 
 }

@@ -31,24 +31,27 @@ object AttackEventBatch {
     val cal: Calendar = Calendar.getInstance()
     cal.add(Calendar.DATE, -1)
     //    var yesterday = dateFormat.format(cal.getTime())
-    val yesterday = "2017-07-19"
-
+    //接收传入的日期
+    val last_day = args(0)
+    //根据传入的日期，获取该日期上一月的月份
+    val last_month = getLastMonth(last_day)
 
     val time1 = new Date().getTime
     val rdd = new JdbcRDD(
       sc,
       () => {
         Class.forName("com.mysql.jdbc.Driver").newInstance()
-        DriverManager.getConnection("jdbc:mysql://192.168.12.12:3306/G01?useUnicode=true&characterEncoding=UTF-8", "root", "123456")
+        DriverManager.getConnection("jdbc:mysql://192.168.12.125:3306/gov01_v3?useUnicode=true&characterEncoding=UTF-8", "root", "123")
       },
-      "SELECT * FROM tbc_ls_attack_log_history WHERE attack_time_str=\"" + yesterday + "\" AND attack_id >=? AND attack_id<=?",
-      1, 99900000000L, 3,
+      "SELECT * FROM tbc_ls_attack_log_history WHERE attack_time_str=\"" + last_day + "\" AND attack_id >=? AND attack_id<=?",
+      1, 999900000000L, 3,
       r => r.getString(1) + "#|#" + r.getString(2) + "#|#" + r.getString(3)
         + "#|#" + r.getString(4) + "#|#" + r.getString(5) + "#|#" + r.getString(6) + "#|#" + r.getString(7)
         + "#|#" + r.getString(8) + "#|#" + r.getString(9) + "#|#" + r.getString(10) + "#|#" + r.getString(11)
         + "#|#" + r.getString(12) + "#|#" + r.getString(13) + "#|#" + r.getString(14) + "#|#" + r.getString(15)
         + "#|#" + r.getString(16) + "#|#" + r.getString(17)
-    ).repartition(10000)
+    ).repartition(1000)
+    println("jdbcRdd的count数量" + rdd.count())
     println("jdbcRdd的分区数量:" + rdd.partitions.length)
 
     //list中位标对应的字段名称
@@ -77,7 +80,7 @@ object AttackEventBatch {
 
     //定义存放网站和开始阈值、结束阈值对应关系的Map
     //如果要使用可变集，必须明确地导入scala.collection.mutable.Map类(driver, jdbc, username, password)
-    var thresholdMap: mutable.Map[String, (Int, Int)] = mutable.Map()
+    var thresholdMap: mutable.Map[String, (Float, Float)] = mutable.Map()
     //定义一个网站维表信息的Map
     var dicMap: mutable.Map[String, List[Any]] = mutable.Map()
     //定义一个存放事件id与网站url对应关系的Map
@@ -96,24 +99,25 @@ object AttackEventBatch {
 
         //获取mysql连接
         val driver = "com.mysql.jdbc.Driver"
-        val jdbc = "jdbc:mysql://192.168.12.12:3306/G01?useUnicode=true&characterEncoding=UTF-8"
+        val jdbc = "jdbc:mysql://192.168.12.125:3306/gov01_v3?useUnicode=true&characterEncoding=UTF-8"
         val username = "root"
-        val password = "123456"
+        val password = "123"
         val conn = MysqlConnectUtil.getConn(driver, jdbc, username, password)
 
         /**
           * 获取网站阈值表中的信息
           */
-        val threshold_sql = "SELECT site_domain,attack_per_min_last1,attack_per_min_last2,attack_per_min_last3 FROM tbc_md_attack_site_primary_mon"
+        val threshold_sql = "SELECT site_domain,attack_per_min FROM tbc_md_attack_site_primary_mon WHERE statis_mon =" + last_month
+        println(threshold_sql)
         //运行mysql获取表tbc_dic_attack_event_threshold中的网站阈值
         val rs1 = MysqlConnectUtil.select(conn, threshold_sql)
 
         // 遍历查询结果，将查询结果写入thresholdMap
         while (rs1.next) {
           val url = rs1.getString(1)
-          val startThreshold = (rs1.getInt(2) + rs1.getInt(3) + rs1.getInt(4)) / 3
-          val stopThreshold = (rs1.getInt(2) + rs1.getInt(3) + rs1.getInt(4)) / 3
-          thresholdMap += (url -> (startThreshold * 10 -> stopThreshold * 5))
+          val startThreshold = rs1.getFloat(2) * 10
+          val stopThreshold = rs1.getFloat(2) * 5
+          thresholdMap += (url -> (startThreshold -> stopThreshold))
         }
 
         /**
@@ -124,20 +128,18 @@ object AttackEventBatch {
           "SELECT c.dept_id,c.dept_name,c.city_id,c.flag_goverment,c.resource_weight AS dept_resource_weight,c.add_time,d.indu_id,d.indu_name,d.resource_weight AS indu_resource_weight " +
           "FROM tbc_dic_department c LEFT JOIN tbc_dic_industry d ON c.indu_id = d.indu_id) b " +
           "ON a.dept_id = b.dept_id"
+        println(dic_sql)
         //运行mysql获取关联的网站维表信息
         val rs2 = MysqlConnectUtil.select(conn, dic_sql)
-
-
         //再遍历查询结果，将查询结果写入dicMap
         dicMap.clear()
         while (rs2.next) {
           val url = rs2.getString(1)
           //List(a.site_id,b.dept_id,b.dept_name,b.indu_id,b.indu_name,b.city_id,a.flag_focus,b.flag_goverment)
           val dicList = List(rs2.getString(2), rs2.getString(3), rs2.getString(4), rs2.getInt(5), rs2.getString(6)
-            , rs2.getString(7), rs2.getString(8), rs2.getString(9))
+            , rs2.getString(7), rs2.getString(8), "1") //rs2.getString(9)
           dicMap += (url -> dicList)
         }
-
 
         //定义攻击模型评分维表中的变量
         var attack_time_param = 0
@@ -161,15 +163,14 @@ object AttackEventBatch {
           }
         }
 
+
         val url = line._1
-
-
         //判断事件阀值Map与网站维表Map中是否含有此url(没有的话，不予计算)
         if (thresholdMap.contains(url) && dicMap.contains(url)) {
 
+
           val attackMap = line._2
           val dicList = dicMap(url)
-
 
           //定义一个Map，按照网站攻击时间来存储网站所有的攻击攻击数量
           var attackCount: mutable.Map[String, Int] = mutable.Map()
@@ -177,7 +178,7 @@ object AttackEventBatch {
           //初始化attackCount(即，向Map中填充0)
           var i = 1439
           while (i >= 0) {
-            val beforeTime = Time_Util.beforeTime(yesterday + " 23:59", i)
+            val beforeTime = Time_Util.beforeTime(last_day + " 23:59", i)
             attackCount += (beforeTime -> 0)
             i -= 1
           }
@@ -193,7 +194,7 @@ object AttackEventBatch {
           //初始化标示
           i = 1439
           while (i >= 0) {
-            val beforeTime = Time_Util.beforeTime(yesterday + " 23:59", i)
+            val beforeTime = Time_Util.beforeTime(last_day + " 23:59", i)
             attackTypeCount += (beforeTime -> attackTypeTmp)
             i -= 1
           }
@@ -228,7 +229,7 @@ object AttackEventBatch {
           //初始化标示
           i = 1439
           while (i >= 0) {
-            val beforeTime = Time_Util.beforeTime(yesterday + " 23:59", i)
+            val beforeTime = Time_Util.beforeTime(last_day + " 23:59", i)
             attackCount(beforeTime)
 
 
@@ -244,9 +245,9 @@ object AttackEventBatch {
                   //向攻击事件表中添加新的攻击事件
                   //List(a.site_id,b.dept_id,b.dept_name,b.indu_id,b.indu_name,b.city_id,a.flag_focus,b.flag_goverment)
                   val sql = "INSERT INTO tbc_md_model_attack_day(statis_day,event_id,start_time," +
-                    "site_id,site_domain,dept_id,dept_name,indu_id,indu_name,city_id,flag_focus,flag_goverment) " +
-                    "VALUES(\"" + beforeTime.substring(0, 10) + "\",\"" + eventId + "\",\"" + beforeTime + ":00\",\"" + dicList.head + "\",\"" + url + "\",\"" + dicList(1) + "\",\"" + dicList(2) + "\"," + dicList(3) + ",\"" + dicList(4) + "\",\"" + dicList(5) + "\",\"" + dicList(6) + "\",\"" + dicList(7) + "\")"
-                  //                    println(sql)
+                    "site_id,site_domain,dept_id,dept_name,indu_id,indu_name,city_id) " +
+                    "VALUES(\"" + beforeTime.substring(0, 10) + "\",\"" + eventId + "\",\"" + beforeTime + ":00\",\"" + dicList.head + "\",\"" + url + "\",\"" + dicList(1) + "\",\"" + dicList(2) + "\"," + dicList(3) + ",\"" + dicList(4) + "\",\"" + dicList(5) + "\")"
+                  //                  println(sql)
                   eventTimeMap += (url -> beforeTime)
                   MysqlConnectUtil.insert(conn, sql)
 
@@ -310,10 +311,10 @@ object AttackEventBatch {
                     var attack_type_top2_count = 0
                     var attack_type_top3_count = 0
                     //定义四个得分变量
-                    var score_attack_time = 0
-                    var score_attack_times = 0
-                    var score_attack_max = 0
-                    var score_attack_type = 0
+                    var score_attack_time = 0.0
+                    var score_attack_times = 0.0
+                    var score_attack_max = 0.0
+                    var score_attack_type = 0.0
 
                     //定义事件开始时间与结束时间
                     val start_Time = eventTimeMap(url)
@@ -378,7 +379,9 @@ object AttackEventBatch {
                           for (h <- 0 until arrayTmp.length) {
                             if (arrayTmp(h) != "") {
                               val listTmp = arrayTmp(h).split("#\\|#")
-                              attackIp += (listTmp(6) -> 1)
+                              if (listTmp.length == 17) {
+                                attackIp += (listTmp(6) -> 1)
+                              }
                             }
                           }
                         }
@@ -423,28 +426,31 @@ object AttackEventBatch {
 
 
                     //生成事件攻击时长得分
-                    if (attack_time >= attack_time_param) {
+                    if (attack_time / 60 >= attack_time_param) {
                       score_attack_time = 100
-                      val update_param = "UPDATE tbc_dic_model_attack_param SET param_value=" + attack_time + " ,param_time=" + beforeTime.substring(0, 10) + " WHERE param_type=\"attack_time\""
+                      val update_param = "UPDATE tbc_dic_model_attack_param SET param_value=" + (attack_time / 60).formatted("%.0f") + " ,update_time='" + beforeTime.substring(0, 10) + "' WHERE param_type=\"attack_time\""
+                      println(update_param)
                       MysqlConnectUtil.update(conn, update_param)
                     } else {
-                      score_attack_time = (attack_time.toDouble * 100 / attack_time_param.toDouble).formatted("%.0f").toInt
+                      score_attack_time = (attack_time.toDouble * 100 / (attack_time_param.toDouble * 60)).formatted("%.1f").toDouble
                     }
                     //生成事件攻击次数得分
                     if (attack_count_all >= attack_times_param) {
                       score_attack_times = 100
-                      val update_param = "UPDATE tbc_dic_model_attack_param SET param_value=" + attack_count_all + " ,param_time=" + beforeTime.substring(0, 10) + " WHERE param_type=\"attack_times\""
+                      val update_param = "UPDATE tbc_dic_model_attack_param SET param_value=" + attack_count_all + " ,update_time='" + beforeTime.substring(0, 10) + "' WHERE param_type=\"attack_times\""
+                      println(update_param)
                       MysqlConnectUtil.update(conn, update_param)
                     } else {
-                      score_attack_times = (attack_count_all.toDouble * 100 / attack_times_param.toDouble).formatted("%.0f").toInt
+                      score_attack_times = (attack_count_all.toDouble * 100 / attack_times_param.toDouble).formatted("%.1f").toDouble
                     }
                     //生成事件攻击峰值得分
                     if (attack_max_minute >= attack_max_param) {
                       score_attack_max = 100
-                      val update_param = "UPDATE tbc_dic_model_attack_param SET param_value=" + attack_max_minute + " ,param_time=" + beforeTime.substring(0, 10) + " WHERE param_type=\"attack_max\""
+                      val update_param = "UPDATE tbc_dic_model_attack_param SET param_value=" + attack_max_minute + " ,param_time='" + beforeTime.substring(0, 10) + "' WHERE param_type=\"attack_max\""
+                      println(update_param)
                       MysqlConnectUtil.update(conn, update_param)
                     } else {
-                      score_attack_max = (attack_max_minute.toDouble * 100 / attack_max_param.toDouble).formatted("%.0f").toInt
+                      score_attack_max = (attack_max_minute.toDouble * 100 / attack_max_param.toDouble).formatted("%.1f").toDouble
                     }
                     //生成事件攻击类型得分
                     var attack_type_count = 0
@@ -456,7 +462,7 @@ object AttackEventBatch {
                     if (attack_type_count >= attack_type_param) {
                       score_attack_type = 100
                     } else {
-                      score_attack_type = (attack_type_count.toDouble * 100 / attack_type_param.toDouble).formatted("%.0f").toInt
+                      score_attack_type = (attack_type_count.toDouble * 100 / attack_type_param.toDouble).formatted("%.1f").toDouble
                     }
 
                     val sql = "UPDATE tbc_md_model_attack_day SET end_time=\"" + stop_Time + "\" " +
@@ -477,7 +483,7 @@ object AttackEventBatch {
                       "',score_attack_max='" + score_attack_max +
                       "',score_attack_type='" + score_attack_type +
                       "' WHERE event_id = \"" + eventMapTmp(url)._1 + "\""
-                    //                      println(sql)
+                    println(sql)
                     MysqlConnectUtil.update(conn, sql)
                     attackLog -= url
                     eventMapTmp -= url
@@ -522,6 +528,7 @@ object AttackEventBatch {
 
         }
 
+
         conn.close()
       })
     )
@@ -540,7 +547,7 @@ object AttackEventBatch {
     for (i <- arrayTmp.indices) {
       if (arrayTmp(i) != "") {
         val log = arrayTmp(i).split("#\\|#")
-        if (log.length==17){
+        if (log.length == 17) {
           //list中位标对应的字段名称
           //list(0-->attack_id,1-->g01_id,2-->server_name,3-->site_domain,4-->site_id,5-->source_addr,
           // 6-->source_ip,7-->url,8-->attack_type,9-->attack_level,10-->attack_violdate,11-->handle_tyle,
@@ -554,8 +561,19 @@ object AttackEventBatch {
           MysqlConnectUtil.insert(conn, sql)
         }
       }
-
     }
   }
 
+  //获取上一月的日期
+  def getLastMonth(date: String): String = {
+    val sdf = new SimpleDateFormat("yyyy-MM-dd")
+    val cal = Calendar.getInstance
+    cal.set(date.substring(0, 4).toInt, date.substring(5, 7).toInt, date.substring(8, 10).toInt)
+    cal.add(Calendar.MONTH, -2)
+    val dateBefore = cal.getTime
+
+    val paramStartDate = sdf.format(dateBefore)
+    System.out.println(paramStartDate.substring(0, 4) + paramStartDate.substring(5, 7))
+    paramStartDate.substring(0, 4) + paramStartDate.substring(5, 7)
+  }
 }
