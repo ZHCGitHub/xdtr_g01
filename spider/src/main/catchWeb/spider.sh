@@ -28,35 +28,35 @@ java -jar CatchAllLink.jar /opt/xdtr_project/G01/getSensitiveWord/webSource/ 3
 
 java -jar GetLinkSource.jar /opt/xdtr_project/G01/getSensitiveWord/filetmp/
 
-#判断hdfs上是否存在目录test1，如果存在则删除test1文件夹里的内容
-#hadoop fs -test -e /xdtrdata/G01/data/test1
+#判断hdfs上是否存在目录swData，如果存在则删除swData文件夹里的内容
+#hadoop fs -test -e /xdtrdata/G01/data/swData
 #if [ $? -eq 0 ]
 #then
-#    hadoop fs -rm -r /xdtrdata/G01/data/test1/*
+#    hadoop fs -rm -r /xdtrdata/G01/data/swData/*
 #else
-#    hadoop fs -mkdir /xdtrdata/G01/data/test1
+#    hadoop fs -mkdir /xdtrdata/G01/data/swData
 #fi
-#
-#hadoop fs -moveFromLocal /opt/xdtr_project/G01/getSensitiveWord/filetmp/* /xdtrdata/G01/data/test1/
-#
+
+hadoop fs -moveFromLocal /opt/xdtr_project/G01/getSensitiveWord/filetmp/* /xdtrdata/G01/data/swData/
+#hadoop dfs -put /home/test/swData /xdtrdata/G01/data/swData
+
 ##rm -rf /opt/xdtr_project/G01/getSensitiveWord/webSource/*
 #
-##判断hdfs上是否存在目录test2，如果存在则删除
-#hadoop fs -test -e /xdtrdata/G01/data/test2
+##判断hdfs上是否存在目录spareWord，如果存在则删除
+#hadoop fs -test -e /xdtrdata/G01/data/spareWord
 #if [ $? -eq 0 ]
 #then
-#    hadoop fs -rm -r /xdtrdata/G01/data/test2
+#    hadoop fs -rm -r /xdtrdata/G01/data/spareWord
 #fi
 #
-#sqoop import --connect jdbc:mysql://${ip}:3306/${database} --username ${user} --password ${passworld} --split-by id --table tbc_dic_url_link_fileName -m 1 --hive-drop-import-delims --fields-terminated-by "$" --target-dir /xdtrdata/G01/data/test2/
+#sqoop import --connect jdbc:mysql://${ip}:3306/${database} --username ${user} --password ${passworld} --split-by id --table tbc_dic_site_link_filename -m 1 --hive-drop-import-delims --fields-terminated-by "$" --target-dir /xdtrdata/G01/data/spareWord/
 #
-#hadoop fs -rm -r /xdtrdata/G01/data/test2/_SUCCESS
+#hadoop fs -rm -r /xdtrdata/G01/data/spareWord/_SUCCESS
 #
-#hadoop fs -mv /xdtrdata/G01/data/test2/part-m-00000 /xdtrdata/G01/data/test2/urlContent.txt
+#hadoop fs -mv /xdtrdata/G01/data/spareWord/part-m-00000 /xdtrdata/G01/data/spareWord/urlContent.txt
 #
 #end_time=$(date '+%s')
 #
 #run_time=$((${end_time} - ${start_time}));
-
 
 echo "程序运行耗时"${run_time}"秒"

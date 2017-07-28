@@ -37,22 +37,21 @@ public class GetLinkSource extends Thread {
 
         //设置mysql连接的参数
         String driver = "com.mysql.jdbc.Driver";
-        String jdbc = "jdbc:mysql://192.168.12.12:3306/G01?useUnicode=true&characterEncoding=UTF-8";
+        String jdbc = "jdbc:mysql://192.168.12.125:3306/gov01_v3?useUnicode=true&characterEncoding=UTF-8";
         String username = "root";
-        String password = "123456";
+        String password = "123";
         //获取mysql连接
         Connection conn = MysqlConnectUtil.getConn(driver, jdbc, username, password);
-
         setConn(conn);
         setPath(path);
 
 
         //创建固定线程池
-        ExecutorService pool = Executors.newFixedThreadPool(100);
+        ExecutorService pool = Executors.newFixedThreadPool(200);
 //        ExecutorService pool = Executors.newCachedThreadPool();//创建无界线程池
 
         //将mysql连接和查询sql传给getSelect()获取查询结果
-        String sql = "SELECT * FROM tbc_dic_url_link";
+        String sql = "SELECT * FROM tbc_dic_site_link";
         ResultSet rs = MysqlConnectUtil.select(conn, sql);
         String url;
         String link;
@@ -73,6 +72,7 @@ public class GetLinkSource extends Thread {
 //                    int threadCount = ((ThreadPoolExecutor) pool).getActiveCount();
 //                    if (threadCount < threads) {
                 System.out.println("/n------------线程池线程数量(" + ((ThreadPoolExecutor) pool).getActiveCount() + ")-----------");
+                System.out.println("/n------------剩余任务数量(" + (((ThreadPoolExecutor) pool).getTaskCount()-((ThreadPoolExecutor) pool).getCompletedTaskCount()) + ")-----------");
                 pool.execute(new GetLinkSource(url, link, fileName));
                 sleep(10);
 //                        break;
@@ -85,7 +85,8 @@ public class GetLinkSource extends Thread {
             //当线程池中的任务全部完成时，关闭mysql连接。
             while (true) {
                 System.out.println("/n------------线程池线程数量(" + ((ThreadPoolExecutor) pool).getActiveCount() + ")-----------");
-                sleep(10000);
+                System.out.println("/n------------剩余任务数量(" + (((ThreadPoolExecutor) pool).getTaskCount()-((ThreadPoolExecutor) pool).getCompletedTaskCount()) + ")-----------");
+                sleep(5000);
                 if (pool.isTerminated()) {
                     conn.close();
                     break;
@@ -131,7 +132,7 @@ public class GetLinkSource extends Thread {
                 }
             }
             if (isCatch) {
-                String sql = "REPLACE INTO tbc_dic_url_link_fileName VALUES(\"" + url + "\",\"" + link + "\",\"" + fileName + "\")";
+                String sql = "REPLACE INTO tbc_dic_site_link_filename VALUES(\"" + url + "\",\"" + link + "\",\"" + fileName + "\")";
 //                System.out.println(sql);
                 MysqlConnectUtil.insert(conn, sql);
             } else {

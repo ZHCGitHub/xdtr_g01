@@ -114,13 +114,18 @@ public class CatchAllLink extends Thread {
                     e.printStackTrace();
                 }
 
-                for (Map.Entry<String, Boolean> mapping : map1.entrySet()) {
-                    String link = mapping.getKey();
-                    System.out.println("链接：" + link);
-                    String sql = "REPLACE INTO tbc_dic_site_link VALUES(\"" + url + "\",\"" + link + "\")";
-                    System.out.println(sql);
-                    MysqlConnectUtil.insert(conn, sql);
+                //判断，如果map1中的大小大于1，即网站发生变化或网站第一次进行爬取
+                //将网站与爬取到的对应链接插入到mysl数据库中
+                if (map1.size()>1){
+                    for (Map.Entry<String, Boolean> mapping : map1.entrySet()) {
+                        String link = mapping.getKey();
+                        System.out.println("链接：" + link);
+                        String sql = "REPLACE INTO tbc_dic_site_link VALUES(\"" + url + "\",\"" + link + "\")";
+                        System.out.println(sql);
+                        MysqlConnectUtil.insert(conn, sql);
+                    }
                 }
+
             } else {
                 System.out.println("请输入正确的参数(depth_control)!");
                 System.out.println("depth_control的数值为1、2、3!");

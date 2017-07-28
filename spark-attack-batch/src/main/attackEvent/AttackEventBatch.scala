@@ -318,7 +318,10 @@ object AttackEventBatch {
 
                     //定义事件开始时间与结束时间
                     val start_Time = eventTimeMap(url)
-                    val stop_Time = beforeTime
+                    val stop_Time = Time_Util.beforeTime(beforeTime, 4)
+                    //定义前10分钟时间和后5分钟时间
+                    val before_10_Time = Time_Util.beforeTime(start_Time,9)
+                    val last_5_Time = beforeTime
                     //计算整个事件持续时间(秒)
                     val df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
                     val attack_time = (df.parse(stop_Time + ":59").getTime - df.parse(start_Time + ":00").getTime) / 1000
@@ -330,12 +333,12 @@ object AttackEventBatch {
                       var k = 0
                       //统计整个事件中所有的攻击数量
                       while (true) {
-                        val tmpTime = Time_Util.beforeTime(start_Time, k)
+                        val tmpTime = Time_Util.beforeTime(before_10_Time, k)
                         attack_count_all += attackCount(tmpTime)
                         if (attack_max_minute < attackCount(tmpTime)) {
                           attack_max_minute = attackCount(tmpTime)
                         }
-                        if (tmpTime == stop_Time) {
+                        if (tmpTime == last_5_Time) {
                           loop.break()
                         }
                         k -= 1
@@ -346,7 +349,7 @@ object AttackEventBatch {
                       var k = 0
                       //统计整个事件中，各种攻击类型对应的攻击数量
                       while (true) {
-                        val tmpTime = Time_Util.beforeTime(start_Time, k)
+                        val tmpTime = Time_Util.beforeTime(before_10_Time, k)
                         //                          println(tmpTime + "======================>" + attackTypeCount(tmpTime))
                         attack_count_cc += attackTypeCount(tmpTime)("CC攻击")
                         attack_count_sql += attackTypeCount(tmpTime)("SQL注入")
@@ -362,7 +365,7 @@ object AttackEventBatch {
                         attack_count_network += attackTypeCount(tmpTime)("网络通信")
                         attack_count_request += attackTypeCount(tmpTime)("非法请求")
                         attack_count_http += attackTypeCount(tmpTime)("HTTP请求防护")
-                        if (tmpTime == stop_Time) {
+                        if (tmpTime == last_5_Time) {
                           loop.break()
                         }
                         k -= 1
@@ -373,7 +376,7 @@ object AttackEventBatch {
                       var k = 0
                       //统计整个事件中的攻击ip数量
                       while (true) {
-                        val tmpTime = Time_Util.beforeTime(start_Time, k)
+                        val tmpTime = Time_Util.beforeTime(before_10_Time, k)
                         if (attackLog.contains(tmpTime)) {
                           val arrayTmp = attackLog(tmpTime).split("#\\$#")
                           for (h <- 0 until arrayTmp.length) {
@@ -385,7 +388,7 @@ object AttackEventBatch {
                             }
                           }
                         }
-                        if (tmpTime == stop_Time) {
+                        if (tmpTime == last_5_Time) {
                           loop.break()
                         }
                         k -= 1
@@ -428,7 +431,7 @@ object AttackEventBatch {
                     //生成事件攻击时长得分
                     if (attack_time / 60 >= attack_time_param) {
                       score_attack_time = 100
-                      val update_param = "UPDATE tbc_dic_model_attack_param SET param_value=" + (attack_time / 60).formatted("%.0f") + " ,update_time='" + beforeTime.substring(0, 10) + "' WHERE param_type=\"attack_time\""
+                      val update_param = "UPDATE tbc_dic_model_attack_param SET param_value=" + (attack_time / 60) + " ,update_time='" + beforeTime.substring(0, 10) + "' WHERE param_type=\"attack_time\""
                       println(update_param)
                       MysqlConnectUtil.update(conn, update_param)
                     } else {
